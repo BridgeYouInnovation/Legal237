@@ -1,27 +1,81 @@
-# Legal237 Admin Dashboard
+# Legal237 Platform - Admin Dashboard & Payment API
 
-A React.js web application for managing the Legal237 mobile app content, users, and analytics.
+A complete full-stack platform for managing legal document sales with integrated mobile money payments via My-CoolPay.
 
-## Features
+## 🏗️ Architecture
 
-- **Dashboard Overview**: Real-time statistics and analytics
-- **Laws Management**: Add, edit, and delete legal articles in both English and French
-- **Lawyers Directory**: Manage lawyer profiles and contact information
-- **User Management**: View registered users and their verification status
-- **Subscriptions & Payments**: Track payment records and revenue analytics
-- **Responsive Design**: Works on desktop and mobile devices
+```
+Legal237 Platform
+├── 🌐 Frontend: React Admin Dashboard (TypeScript)
+├── ⚙️ Backend: Express.js API Server  
+├── 💳 Payment: My-CoolPay Integration (MTN & Orange Money)
+├── 🗄️ Database: Supabase (PostgreSQL)
+└── 📱 Mobile: React Native Integration
+```
 
-## Prerequisites
+## 🚀 Features
 
-- Node.js (v14 or higher)
+### Admin Dashboard
+- 📊 Real-time payment analytics and reporting
+- 👥 User management and subscription tracking
+- 📋 Transaction monitoring and status updates
+- 🔐 Secure authentication with role-based access
+- 📄 Legal document access management
+
+### Payment API
+- 💰 My-CoolPay integration for MTN Mobile Money & Orange Money
+- 🔄 Automated webhook handling for payment status updates
+- 🔐 Secure payment verification with signature validation
+- 📱 Mobile app API endpoints with deep linking support
+- 🎯 Document access control based on successful payments
+
+### Mobile Integration
+- 📲 Seamless payment flow from React Native app
+- 🔗 Deep linking for payment redirects
+- ⚡ Real-time payment status polling
+- 📱 Native mobile money interfaces
+
+## 🛠️ Technology Stack
+
+**Frontend:**
+- React 19 with TypeScript
+- Material-UI (MUI) for components
+- React Router for navigation
+- Recharts for analytics
+
+**Backend:**
+- Node.js with Express.js
+- Supabase for database operations
+- My-CoolPay SDK integration
+- JWT authentication
+
+**Database:**
+- PostgreSQL via Supabase
+- Row-level security (RLS)
+- Real-time subscriptions
+- Automated backups
+
+**Payment Processing:**
+- My-CoolPay Merchant API
+- MTN Mobile Money
+- Orange Money
+- Webhook validation
+- Transaction tracking
+
+## 📋 Prerequisites
+
+- Node.js 18+ 
 - npm or yarn
-- Access to the Supabase database (same as mobile app)
+- Supabase account
+- My-CoolPay merchant account
+- Domain name (for production)
 
-## Installation
+## 🔧 Installation
 
-1. **Navigate to the admin dashboard directory:**
+1. **Clone the repository:**
    ```bash
-   cd admin-dashboard
+   git clone https://github.com/BridgeYouInnovation/Legal237.git
+   cd Legal237/admin-dashboard
    ```
 
 2. **Install dependencies:**
@@ -29,178 +83,163 @@ A React.js web application for managing the Legal237 mobile app content, users, 
    npm install
    ```
 
-3. **Set up environment variables:**
-   Create a `.env` file in the root directory with:
-   ```
-   REACT_APP_SUPABASE_URL=your_supabase_url
-   REACT_APP_SUPABASE_ANON_KEY=your_supabase_anon_key
-   REACT_APP_SUPABASE_SERVICE_KEY=your_supabase_service_role_key
-   ```
-
-4. **Start the development server:**
+3. **Environment setup:**
    ```bash
+   cp .env.example .env
+   # Configure your environment variables
+   ```
+
+4. **Database setup:**
+   - Create a Supabase project
+   - Run the SQL schema from `database/payment_schema.sql`
+
+5. **Start development server:**
+   ```bash
+   # Frontend only
    npm start
+   
+   # Full-stack (frontend + backend)
+   npm run dev
    ```
 
-5. **Open your browser:**
-   Navigate to `http://localhost:3000`
+## 🔑 Environment Variables
 
-## Database Schema
+```env
+# App Configuration
+NODE_ENV=production
+PORT=5000
+BASE_URL=https://legal237.com
 
-The admin dashboard expects the following Supabase tables:
+# Supabase Configuration
+SUPABASE_URL=your_supabase_project_url
+SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 
-### `legal_articles`
-```sql
-CREATE TABLE legal_articles (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  article_number TEXT NOT NULL,
-  title_en TEXT NOT NULL,
-  title_fr TEXT NOT NULL,
-  content_en TEXT NOT NULL,
-  content_fr TEXT NOT NULL,
-  document_type TEXT NOT NULL,
-  category TEXT NOT NULL,
-  created_at TIMESTAMP DEFAULT NOW()
-);
+# My-CoolPay Configuration
+MYCOOLPAY_PUBLIC_KEY=your_mycoolpay_public_key
+MYCOOLPAY_PRIVATE_KEY=your_mycoolpay_private_key
+MYCOOLPAY_MERCHANT_ID=your_mycoolpay_merchant_id
 ```
 
-### `lawyers`
-```sql
-CREATE TABLE lawyers (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  name TEXT NOT NULL,
-  email TEXT NOT NULL,
-  phone TEXT NOT NULL,
-  specialization TEXT NOT NULL,
-  location TEXT NOT NULL,
-  years_experience INTEGER NOT NULL,
-  bar_number TEXT NOT NULL,
-  profile_image_url TEXT,
-  created_at TIMESTAMP DEFAULT NOW()
-);
-```
+## 🌐 API Endpoints
 
-### `payment_records`
-```sql
-CREATE TABLE payment_records (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID REFERENCES auth.users(id),
-  document_type TEXT NOT NULL,
-  amount DECIMAL NOT NULL,
-  currency TEXT DEFAULT 'XAF',
-  status TEXT NOT NULL,
-  payment_method TEXT,
-  transaction_id TEXT,
-  created_at TIMESTAMP DEFAULT NOW()
-);
-```
-
-## Authentication
-
-The admin dashboard uses Supabase authentication. Admin users need to be created manually in the Supabase dashboard or via the Supabase CLI.
-
-### Creating an Admin User
-
-1. **Via Supabase Dashboard:**
-   - Go to Authentication > Users
-   - Click "Invite" or "Add user"
-   - Enter admin email and temporary password
-   - The user can then sign in to the admin dashboard
-
-2. **Via SQL:**
-   ```sql
-   -- Insert admin user (replace with actual admin email/password)
-   INSERT INTO auth.users (id, email, email_confirmed_at, created_at, updated_at)
-   VALUES (gen_random_uuid(), 'admin@legal237.com', NOW(), NOW(), NOW());
-   ```
-
-## Usage
-
-### Dashboard
-- View real-time statistics for users, laws, lawyers, and revenue
-- Monitor system health and activity
-
-### Laws Management
-- **Add Laws**: Click "Add New Law" to create articles in both languages
-- **Edit Laws**: Click the edit icon to modify existing articles
-- **Delete Laws**: Click the delete icon to remove articles
-- **Document Types**: Support for Penal Code and Criminal Procedure
-- **Categories**: Organize laws by category for better navigation
-
-### Lawyers Directory
-- **Add Lawyers**: Include full profile information
-- **Contact Details**: Email and phone information
-- **Specializations**: Tag lawyers by their areas of expertise
-- **Experience Tracking**: Years of experience and bar number
-- **Profile Images**: Optional profile photo URLs
-
-### User Management
-- **View Users**: See all registered users from the mobile app
-- **Search & Filter**: Find users by email, phone, or ID
-- **Verification Status**: Check email/phone verification status
-- **Registration Tracking**: View join dates and last sign-in times
-
-### Subscriptions & Payments
-- **Payment Records**: View all transaction history
-- **Revenue Analytics**: Track total revenue and successful payments
-- **Filter Options**: Filter by status, document type, or user
-- **Transaction Details**: View payment methods and transaction IDs
-
-## Security
-
-- **Row Level Security**: Ensure RLS is enabled on all tables
-- **Service Role**: Uses service role key for admin operations
-- **Authentication Required**: All routes require authentication
-- **Input Validation**: Form validation for all data entry
-
-## Deployment
-
-### Production Build
+### Payment API
 ```bash
-npm run build
+POST   /api/payment/init                    # Initialize payment
+GET    /api/payment/status/:transactionId   # Check payment status
+GET    /api/payment/documents/:documentType # Get document info
+GET    /api/payment/service-status          # Check service status
+GET    /api/payment/history/:userId         # Get payment history
+GET    /api/payment/access/:userId/:docType # Check document access
 ```
 
-### Deploy to Vercel
+### Webhooks
 ```bash
-npm install -g vercel
-vercel --prod
+POST   /api/webhooks/mycoolpay             # My-CoolPay payment webhooks
+POST   /api/webhooks/test                  # Test webhook endpoint
+GET    /api/webhooks/logs/:transactionId   # Get webhook logs
 ```
 
-### Deploy to Netlify
-1. Build the project: `npm run build`
-2. Upload the `build` folder to Netlify
-3. Set environment variables in Netlify dashboard
+### Health & Monitoring
+```bash
+GET    /api/health                         # API health check
+```
 
-### Environment Variables for Production
-Make sure to set these in your hosting platform:
-- `REACT_APP_SUPABASE_URL`
-- `REACT_APP_SUPABASE_ANON_KEY`
-- `REACT_APP_SUPABASE_SERVICE_KEY`
+## 💳 My-CoolPay Integration
 
-## Troubleshooting
+### Application Configuration
+When setting up your My-CoolPay merchant application, use these settings:
 
-### Common Issues
+```
+Application Name: The Law 237 - Legal Documents
+Homepage URL: https://legal237.com
+Success URL: https://legal237.com/payment/success
+Cancelled URL: https://legal237.com/payment/cancelled
+Failed URL: https://legal237.com/payment/failed
+Callback URL: https://legal237.com/api/webhooks/mycoolpay
+```
 
-1. **Authentication Errors**
-   - Check environment variables are correctly set
-   - Verify Supabase service role key has admin permissions
+### Supported Payment Methods
+- 📱 MTN Mobile Money
+- 🍊 Orange Money
+- 💳 More methods coming soon
 
-2. **Database Connection Issues**
-   - Confirm Supabase URL and keys are valid
-   - Check if RLS policies allow admin access
+## 🚀 Deployment
 
-3. **Build Errors**
-   - Clear node_modules and reinstall: `rm -rf node_modules && npm install`
-   - Check for TypeScript errors: `npm run build`
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for comprehensive deployment instructions including:
 
-### Support
+- 🌐 Netlify deployment (recommended)
+- 🖥️ VPS/dedicated server setup
+- ☁️ Platform-as-a-Service options
+- 🔒 SSL configuration
+- 📡 Domain setup
 
-For issues or questions:
-- Check the console for error messages
-- Verify database schema matches requirements
-- Ensure all environment variables are set correctly
+## 📱 Mobile App Integration
 
-## Contributing
+The React Native mobile app connects to this backend via API calls:
+
+```javascript
+// Example usage in mobile app
+import newPaymentService from './services/newPaymentService';
+
+const result = await newPaymentService.initiatePayment(
+  'penal_code',
+  { fullname: 'John Doe', email: 'john@example.com', phone: '677123456' },
+  'MTN',
+  'en'
+);
+```
+
+## 🗄️ Database Schema
+
+The platform uses the following main tables:
+
+- `payment_transactions` - Payment records and status
+- `document_access` - User document access permissions
+- Custom views for analytics and reporting
+
+## 🔐 Security
+
+- 🛡️ Row-level security on all database tables
+- 🔑 JWT-based authentication
+- ✅ Webhook signature validation
+- 🔒 HTTPS enforcement
+- 🚫 CORS protection
+- 🔐 Environment variable protection
+
+## 📊 Analytics & Monitoring
+
+- 📈 Real-time payment analytics
+- 📉 Revenue tracking by payment method
+- 🔍 Transaction monitoring and alerting
+- 📋 User activity logs
+- 🚨 Error tracking and reporting
+
+## 🧪 Testing
+
+```bash
+# Run tests
+npm test
+
+# Test API endpoints
+curl https://legal237.com/api/health
+
+# Test payment flow
+npm run test:payments
+```
+
+## 📞 Support
+
+For technical support and questions:
+- 📧 Email: support@legal237.com
+- 🐛 Issues: [GitHub Issues](https://github.com/BridgeYouInnovation/Legal237/issues)
+- 📖 Documentation: [Wiki](https://github.com/BridgeYouInnovation/Legal237/wiki)
+
+## 📄 License
+
+This project is proprietary software owned by BridgeYou Innovation.
+
+## 🤝 Contributing
 
 1. Fork the repository
 2. Create a feature branch
@@ -208,6 +247,6 @@ For issues or questions:
 4. Test thoroughly
 5. Submit a pull request
 
-## License
+---
 
-This project is part of the Legal237 ecosystem. All rights reserved.
+**Legal237** - Simplifying legal document access in Cameroon 🇨🇲

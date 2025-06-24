@@ -140,6 +140,16 @@ const PaymentSuccess: React.FC = () => {
                   {paymentData.payment_method}
                 </Typography>
               </Box>
+              {reference && (
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    Reference:
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
+                    {reference}
+                  </Typography>
+                </Box>
+              )}
               <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                 <Typography variant="body2" color="text.secondary">
                   Document:
