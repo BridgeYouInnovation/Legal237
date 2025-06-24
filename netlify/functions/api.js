@@ -112,6 +112,42 @@ exports.handler = async (event, context) => {
     if (path === '/webhooks/mycoolpay' && method === 'POST') {
       return await handleWebhook(body, event.headers, headers);
     }
+    
+    // Test endpoint for webhook (GET request for testing)
+    if (path === '/webhooks/mycoolpay' && method === 'GET') {
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ 
+          success: true, 
+          message: 'Webhook endpoint is working',
+          endpoint: 'POST /api/webhooks/mycoolpay',
+          note: 'This endpoint accepts POST requests from My-CoolPay'
+        })
+      };
+    }
+    
+    // Health check endpoint
+    if (path === '/health' && method === 'GET') {
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ 
+          success: true, 
+          status: 'API is running',
+          timestamp: new Date().toISOString(),
+          available_endpoints: [
+            'POST /api/payment/init',
+            'GET /api/payment/status/{transactionId}',
+            'GET /api/payment/documents/{documentType}',
+            'GET /api/payment/service-status',
+            'GET /api/payment/history/{userId}',
+            'GET /api/payment/access/{userId}/{documentType}',
+            'POST /api/webhooks/mycoolpay'
+          ]
+        })
+      };
+    }
 
     // Default 404 response
     return {
