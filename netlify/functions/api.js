@@ -268,6 +268,10 @@ async function handlePaymentInit(body, headers) {
     // Generate signature
     paymentData.signature = generateSignature(paymentData, MYCOOLPAY_CONFIG.privateKey);
 
+    // Create complete checkout URL with payment parameters
+    const checkoutParams = new URLSearchParams(paymentData);
+    const checkoutUrl = `${MYCOOLPAY_CONFIG.baseUrl}/checkout?${checkoutParams.toString()}`;
+
     // Save transaction to database
     const insertData = {
       document_type: documentType,
@@ -281,7 +285,7 @@ async function handlePaymentInit(body, headers) {
       user_id: finalUserId,
       status: 'pending',
       payment_reference: transactionId,
-      payment_url: `${MYCOOLPAY_CONFIG.baseUrl}/checkout`,
+      payment_url: checkoutUrl,
       webhook_data: { ...paymentData, original_user_id: userId }
     };
     
@@ -327,7 +331,9 @@ async function handlePaymentInit(body, headers) {
       body: JSON.stringify({
         success: true,
         transaction_id: transactionId,
-        payment_url: `${MYCOOLPAY_CONFIG.baseUrl}/checkout`,
+        payment_url: checkoutUrl,
+        amount: amount,
+        currency: currency,
         payment_data: paymentData
       })
     };
