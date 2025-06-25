@@ -396,21 +396,32 @@ export default function PaymentScreen({ navigation, route }) {
               </Text>
               
               <View style={styles.documentDetails}>
-                <Text variant="titleLarge" style={{ color: theme.colors.primary }}>
-                  {documentInfo.name}
-                </Text>
-                <Text variant="bodyMedium" style={{ color: theme.colors.onSurface, marginTop: 4 }}>
-                  {documentInfo.description}
-                </Text>
-                
-                <View style={styles.priceContainer}>
-                  <Text variant="headlineSmall" style={{ color: theme.colors.primary }}>
-                    {documentInfo.price.toLocaleString()} {documentInfo.currency}
-                  </Text>
-                  <Chip mode="outlined" compact>
-                    {content.price}
-                  </Chip>
-                </View>
+                {documentInfo ? (
+                  <>
+                    <Text variant="titleLarge" style={{ color: theme.colors.primary }}>
+                      {documentInfo.name}
+                    </Text>
+                    <Text variant="bodyMedium" style={{ color: theme.colors.onSurface, marginTop: 4 }}>
+                      {documentInfo.description}
+                    </Text>
+                    
+                    <View style={styles.priceContainer}>
+                      <Text variant="headlineSmall" style={{ color: theme.colors.primary }}>
+                        {documentInfo.price?.toLocaleString()} {documentInfo.currency}
+                      </Text>
+                      <Chip mode="outlined" compact>
+                        {content.price}
+                      </Chip>
+                    </View>
+                  </>
+                ) : (
+                  <View style={{ padding: 20, alignItems: 'center' }}>
+                    <ActivityIndicator size="small" color={theme.colors.primary} />
+                    <Text variant="bodyMedium" style={{ marginTop: 8, color: theme.colors.onSurface }}>
+                      Loading document info...
+                    </Text>
+                  </View>
+                )}
               </View>
             </Card.Content>
           </Card>
@@ -498,13 +509,15 @@ export default function PaymentScreen({ navigation, route }) {
             mode="contained"
             onPress={handlePayment}
             style={styles.payButton}
-            disabled={loading || serviceStatus.status === 'maintenance'}
+            disabled={loading || serviceStatus.status === 'maintenance' || !documentInfo}
             icon={loading ? undefined : "credit-card"}
           >
             {loading ? (
               <ActivityIndicator size="small" color="white" />
             ) : serviceStatus.status === 'maintenance' ? (
               currentLanguage === 'fr' ? 'Service en Maintenance' : 'Service Under Maintenance'
+            ) : !documentInfo ? (
+              currentLanguage === 'fr' ? 'Chargement...' : 'Loading...'
             ) : (
               content.payNow
             )}
