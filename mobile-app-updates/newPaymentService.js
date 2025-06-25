@@ -2,9 +2,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 class NewPaymentService {
   constructor() {
-    this.baseURL = __DEV__ 
-      ? 'http://localhost:5000/api' 
-      : 'https://legal237.com/.netlify/functions/api';
+    // For mobile development, always use production API since we don't have local server
+    this.baseURL = 'https://legal237.com/.netlify/functions/api';
+    
+    console.log('NewPaymentService initialized with baseURL:', this.baseURL);
   }
 
   /**
@@ -30,7 +31,7 @@ class NewPaymentService {
       console.log('Document info response:', data);
       
       if (data.success) {
-        return data.document;
+        return data.document || data; // Handle different response formats
       } else {
         throw new Error(data.error || 'Failed to get document info');
       }
@@ -190,15 +191,18 @@ class NewPaymentService {
    */
   async checkServiceStatus() {
     try {
-      console.log('Checking service status at:', `${this.baseURL}/payment/service-status`);
+      const url = `${this.baseURL}/payment/service-status`;
+      console.log('Checking service status at:', url);
       
-      const response = await fetch(`${this.baseURL}/payment/service-status`, {
+      const response = await fetch(url, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
         },
-        timeout: 10000,
+        timeout: 15000, // Increase timeout
       });
+
+      console.log('Response status:', response.status, response.statusText);
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -206,13 +210,20 @@ class NewPaymentService {
 
       const data = await response.json();
       console.log('Service status response:', data);
-      return data;
+      
+      return {
+        available: data.success || true,
+        status: data.status || 'operational',
+        message: data.message || 'Service is running',
+        services: data.services
+      };
     } catch (error) {
       console.error('Service status check error:', error);
       console.error('Error details:', {
         message: error.message,
         name: error.name,
-        url: `${this.baseURL}/payment/service-status`
+        url: `${this.baseURL}/payment/service-status`,
+        stack: error.stack
       });
       return {
         available: false,
