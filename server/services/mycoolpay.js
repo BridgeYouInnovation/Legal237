@@ -3,10 +3,14 @@ const crypto = require('crypto');
 
 class MyCoolPayService {
   constructor() {
-    this.baseURL = 'https://my-coolpay.com/api/v1.1';
+    this.baseURL = 'https://my-coolpay.com/api/v1';
     this.publicKey = process.env.MYCOOLPAY_PUBLIC_KEY;
     this.privateKey = process.env.MYCOOLPAY_PRIVATE_KEY;
     this.merchantId = process.env.MYCOOLPAY_MERCHANT_ID;
+    
+    if (!this.publicKey || !this.privateKey) {
+      throw new Error('My-CoolPay API keys not configured');
+    }
   }
 
   /**

@@ -15,6 +15,11 @@ const MYCOOLPAY_CONFIG = {
   baseUrl: 'https://my-coolpay.com/api/v1'
 };
 
+// Validate API keys are present
+if (!MYCOOLPAY_CONFIG.publicKey || !MYCOOLPAY_CONFIG.privateKey) {
+  console.error('My-CoolPay API keys not configured properly');
+}
+
 // Document pricing
 const DOCUMENT_PRICES = {
   penal_code: { price: 2000, name: 'Penal Code', description: 'Complete Cameroon Penal Code' },
