@@ -52,16 +52,35 @@ class NewPaymentService {
    */
   async initiatePayment(documentType, customer, paymentMethod, language = 'en') {
     try {
-      // Get user ID if available
-      const userData = await AsyncStorage.getItem('user_data');
-      const userId = userData ? JSON.parse(userData).id : null;
+      // Get document info to get the price
+      const docInfo = await this.getDocumentInfo(documentType, language);
+      
+      // Generate or get user ID
+      let userId;
+      try {
+        const userData = await AsyncStorage.getItem('user_data');
+        if (userData) {
+          const userObj = JSON.parse(userData);
+          userId = userObj.id || userObj.userId || userObj.email || customer.email;
+        } else {
+          // Generate a temporary user ID based on email for guest payments
+          userId = `guest_${customer.email.replace('@', '_').replace('.', '_')}`;
+        }
+      } catch (error) {
+        // Fallback: use email as user ID
+        userId = `guest_${customer.email.replace('@', '_').replace('.', '_')}`;
+      }
 
       const requestData = {
         documentType,
         customer,
         paymentMethod,
         language,
-        userId
+        userId,
+        amount: docInfo.price, // Add the required amount field
+        currency: 'XAF',
+        email: customer.email,
+        phone: customer.phone
       };
 
       console.log('Initiating payment:', requestData);
