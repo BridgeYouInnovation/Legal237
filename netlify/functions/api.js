@@ -66,6 +66,13 @@ function verifyWebhookSignature(payload, signature, privateKey) {
 
 // Main handler function
 exports.handler = async (event, context) => {
+  console.log('Function called with event:', {
+    path: event.path,
+    method: event.httpMethod,
+    body: event.body,
+    headers: event.headers
+  });
+  
   // Enable CORS
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -159,6 +166,7 @@ exports.handler = async (event, context) => {
         body: JSON.stringify({ 
           success: true, 
           status: 'API is running',
+          version: '2.0.0-fixed-amount-calculation',
           timestamp: new Date().toISOString(),
           database_status: dbStatus,
           supabase_config: {
