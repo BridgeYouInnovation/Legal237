@@ -7,6 +7,14 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+// Validate Supabase configuration
+if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  console.error('Missing Supabase configuration:', {
+    hasUrl: !!process.env.SUPABASE_URL,
+    hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY
+  });
+}
+
 // My-CoolPay configuration
 const MYCOOLPAY_CONFIG = {
   merchantId: process.env.MYCOOLPAY_MERCHANT_ID,
@@ -134,6 +142,17 @@ exports.handler = async (event, context) => {
     
     // Health check endpoint
     if (path === '/health' && method === 'GET') {
+      // Test database connection
+      let dbStatus = 'unknown';
+      try {
+        const { data, error } = await supabase
+          .from('payment_transactions')
+          .select('count', { count: 'exact', head: true });
+        dbStatus = error ? `error: ${error.message}` : 'connected';
+      } catch (err) {
+        dbStatus = `connection failed: ${err.message}`;
+      }
+      
       return {
         statusCode: 200,
         headers,
@@ -141,6 +160,12 @@ exports.handler = async (event, context) => {
           success: true, 
           status: 'API is running',
           timestamp: new Date().toISOString(),
+          database_status: dbStatus,
+          supabase_config: {
+            hasUrl: !!process.env.SUPABASE_URL,
+            hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+            urlPreview: process.env.SUPABASE_URL ? process.env.SUPABASE_URL.substring(0, 30) + '...' : 'missing'
+          },
           available_endpoints: [
             'POST /api/payment/init',
             'GET /api/payment/status/{transactionId}',
@@ -210,30 +235,55 @@ async function handlePaymentInit(body, headers) {
     paymentData.signature = generateSignature(paymentData, MYCOOLPAY_CONFIG.privateKey);
 
     // Save transaction to database
+    const insertData = {
+      document_type: documentType,
+      customer_name: customerName,
+      customer_email: customerEmail,
+      customer_phone: customerPhone,
+      amount: amount,
+      currency: currency,
+      payment_method: 'MOBILE_MONEY', // or use the actual payment method
+      language: 'en', // or use the actual language
+      user_id: userId,
+      status: 'pending',
+      payment_reference: transactionId,
+      payment_url: `${MYCOOLPAY_CONFIG.baseUrl}/checkout`,
+      webhook_data: paymentData
+    };
+    
+    console.log('Inserting transaction data:', insertData);
+    
     const { error: dbError } = await supabase
       .from('payment_transactions')
-      .insert({
+      .insert(insertData);
+
+    if (dbError) {
+      console.error('Database error details:', {
+        error: dbError,
+        message: dbError.message,
+        details: dbError.details,
+        hint: dbError.hint,
+        code: dbError.code
+      });
+      console.error('Attempted to insert:', {
         document_type: documentType,
         customer_name: customerName,
         customer_email: customerEmail,
         customer_phone: customerPhone,
         amount: amount,
         currency: currency,
-        payment_method: 'MOBILE_MONEY', // or use the actual payment method
-        language: 'en', // or use the actual language
         user_id: userId,
         status: 'pending',
-        payment_reference: transactionId,
-        payment_url: `${MYCOOLPAY_CONFIG.baseUrl}/checkout`,
-        webhook_data: paymentData
+        payment_reference: transactionId
       });
-
-    if (dbError) {
-      console.error('Database error:', dbError);
       return {
         statusCode: 500,
         headers,
-        body: JSON.stringify({ error: 'Failed to save transaction' })
+        body: JSON.stringify({ 
+          error: 'Failed to save transaction',
+          details: dbError.message,
+          code: dbError.code
+        })
       };
     }
 
