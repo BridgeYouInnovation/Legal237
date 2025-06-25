@@ -235,8 +235,20 @@ async function handlePaymentInit(body, headers) {
   const finalCustomerEmail = customerEmail || customer?.email || email;
   const finalCustomerPhone = customerPhone || customer?.phone || phone;
 
+  // Handle user_id - generate UUID if not a valid UUID format
+  let finalUserId = userId;
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(userId)) {
+    // For non-UUID userIds (like emails or simple strings), we'll set user_id to null
+    // and use the original userId for reference in the payment_reference
+    finalUserId = null;
+    console.log(`Non-UUID userId provided: ${userId}, setting user_id to null`);
+  }
+
   try {
-    const transactionId = `tx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    // Include original userId in transaction reference for tracking
+    const userRef = userId.replace(/[^a-zA-Z0-9]/g, '').substring(0, 20); // Clean userId for reference
+    const transactionId = `tx_${Date.now()}_${userRef}_${Math.random().toString(36).substr(2, 9)}`;
     
     // Prepare payment data
     const paymentData = {
@@ -266,11 +278,11 @@ async function handlePaymentInit(body, headers) {
       currency: currency,
       payment_method: 'MOBILE_MONEY', // or use the actual payment method
       language: 'en', // or use the actual language
-      user_id: userId,
+      user_id: finalUserId,
       status: 'pending',
       payment_reference: transactionId,
       payment_url: `${MYCOOLPAY_CONFIG.baseUrl}/checkout`,
-      webhook_data: paymentData
+      webhook_data: { ...paymentData, original_user_id: userId }
     };
     
     console.log('Inserting transaction data:', insertData);
@@ -294,7 +306,7 @@ async function handlePaymentInit(body, headers) {
         customer_phone: finalCustomerPhone,
         amount: amount,
         currency: currency,
-        user_id: userId,
+        user_id: finalUserId,
         status: 'pending',
         payment_reference: transactionId
       });
