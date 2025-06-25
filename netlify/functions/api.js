@@ -173,15 +173,20 @@ exports.handler = async (event, context) => {
 
 // Payment initialization handler
 async function handlePaymentInit(body, headers) {
-  const { amount, currency = 'XAF', documentType, userId, email, phone } = body;
+  const { amount, currency = 'XAF', documentType, userId, email, phone, customer } = body;
 
   if (!amount || !documentType || !userId) {
     return {
       statusCode: 400,
       headers,
-      body: JSON.stringify({ error: 'Missing required fields' })
+      body: JSON.stringify({ error: 'Missing required fields: amount, documentType, userId' })
     };
   }
+
+  // Extract customer info
+  const customerName = customer?.fullname || customer?.name || 'Guest User';
+  const customerEmail = customer?.email || email;
+  const customerPhone = customer?.phone || phone;
 
   try {
     const transactionId = `tx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -193,8 +198,8 @@ async function handlePaymentInit(body, headers) {
       currency: currency,
       transaction_id: transactionId,
       description: DOCUMENT_PRICES[documentType]?.description || 'Legal document purchase',
-      customer_email: email,
-      customer_phone: phone,
+      customer_email: customerEmail,
+      customer_phone: customerPhone,
       success_url: `${process.env.BASE_URL || 'https://legal237.com'}/payment/success`,
       cancel_url: `${process.env.BASE_URL || 'https://legal237.com'}/payment/cancelled`,
       fail_url: `${process.env.BASE_URL || 'https://legal237.com'}/payment/failed`,
@@ -208,15 +213,19 @@ async function handlePaymentInit(body, headers) {
     const { error: dbError } = await supabase
       .from('payment_transactions')
       .insert({
-        transaction_id: transactionId,
-        user_id: userId,
+        document_type: documentType,
+        customer_name: customerName,
+        customer_email: customerEmail,
+        customer_phone: customerPhone,
         amount: amount,
         currency: currency,
-        document_type: documentType,
+        payment_method: 'MOBILE_MONEY', // or use the actual payment method
+        language: 'en', // or use the actual language
+        user_id: userId,
         status: 'pending',
-        email: email,
-        phone: phone,
-        payment_data: paymentData
+        payment_reference: transactionId,
+        payment_url: `${MYCOOLPAY_CONFIG.baseUrl}/checkout`,
+        webhook_data: paymentData
       });
 
     if (dbError) {
@@ -255,7 +264,7 @@ async function handlePaymentStatus(transactionId, headers) {
     const { data: transaction, error } = await supabase
       .from('payment_transactions')
       .select('*')
-      .eq('transaction_id', transactionId)
+      .eq('payment_reference', transactionId)
       .single();
 
     if (error || !transaction) {
@@ -369,7 +378,7 @@ async function handleDocumentAccess(userId, documentType, headers) {
       .select('*')
       .eq('user_id', userId)
       .eq('document_type', documentType)
-      .eq('is_active', true)
+      .eq('status', 'active')
       .single();
 
     return {
@@ -413,11 +422,11 @@ async function handleWebhook(body, eventHeaders, headers) {
       .update({
         status: status,
         payment_method: payment_method,
-        reference: reference,
         webhook_data: body,
+        webhook_received_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
-      .eq('transaction_id', transaction_id);
+      .eq('payment_reference', transaction_id);
 
     if (updateError) {
       console.error('Failed to update transaction:', updateError);
@@ -432,8 +441,8 @@ async function handleWebhook(body, eventHeaders, headers) {
     if (status === 'completed' || status === 'success') {
       const { data: transaction } = await supabase
         .from('payment_transactions')
-        .select('user_id, document_type')
-        .eq('transaction_id', transaction_id)
+        .select('user_id, document_type, id')
+        .eq('payment_reference', transaction_id)
         .single();
 
       if (transaction) {
@@ -442,8 +451,8 @@ async function handleWebhook(body, eventHeaders, headers) {
           .upsert({
             user_id: transaction.user_id,
             document_type: transaction.document_type,
-            transaction_id: transaction_id,
-            is_active: true,
+            transaction_id: transaction.id,
+            status: 'active',
             granted_at: new Date().toISOString()
           });
       }
