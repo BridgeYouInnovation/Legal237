@@ -341,7 +341,7 @@ export default function PaymentScreen({ navigation, route }) {
               <View style={styles.statusInfo}>
                 <Icon 
                   name={serviceStatus.status === 'operational' ? "check-circle" : 
-                        serviceStatus.status === 'maintenance' ? "alert-circle" : "close-circle"} 
+                        serviceStatus.status === 'maintenance' ? "warning" : "error"} 
                   size={20} 
                   color={serviceStatus.status === 'operational' ? '#28a745' : 
                          serviceStatus.status === 'maintenance' ? '#ffc107' : '#dc3545'} 
