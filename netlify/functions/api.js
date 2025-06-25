@@ -198,20 +198,34 @@ exports.handler = async (event, context) => {
 
 // Payment initialization handler
 async function handlePaymentInit(body, headers) {
-  const { amount, currency = 'XAF', documentType, userId, email, phone, customer } = body;
+  console.log('Payment init request body:', body);
+  
+  const { currency = 'XAF', documentType, userId, email, phone, customer, customerName, customerEmail, customerPhone } = body;
 
-  if (!amount || !documentType || !userId) {
+  if (!documentType || !userId) {
     return {
       statusCode: 400,
       headers,
-      body: JSON.stringify({ error: 'Missing required fields: amount, documentType, userId' })
+      body: JSON.stringify({ error: 'Missing required fields: documentType, userId' })
     };
   }
+  
+  // Get document info and price
+  const docInfo = DOCUMENT_PRICES[documentType];
+  if (!docInfo) {
+    return {
+      statusCode: 400,
+      headers,
+      body: JSON.stringify({ error: 'Invalid document type' })
+    };
+  }
+  
+  const amount = docInfo.price;
 
-  // Extract customer info
-  const customerName = customer?.fullname || customer?.name || 'Guest User';
-  const customerEmail = customer?.email || email;
-  const customerPhone = customer?.phone || phone;
+  // Extract customer info - prioritize direct fields, then customer object, then fallbacks
+  const finalCustomerName = customerName || customer?.fullname || customer?.name || 'Guest User';
+  const finalCustomerEmail = customerEmail || customer?.email || email;
+  const finalCustomerPhone = customerPhone || customer?.phone || phone;
 
   try {
     const transactionId = `tx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -222,9 +236,9 @@ async function handlePaymentInit(body, headers) {
       amount: amount,
       currency: currency,
       transaction_id: transactionId,
-      description: DOCUMENT_PRICES[documentType]?.description || 'Legal document purchase',
-      customer_email: customerEmail,
-      customer_phone: customerPhone,
+      description: docInfo.description || 'Legal document purchase',
+      customer_email: finalCustomerEmail,
+      customer_phone: finalCustomerPhone,
       success_url: `${process.env.BASE_URL || 'https://legal237.com'}/payment/success`,
       cancel_url: `${process.env.BASE_URL || 'https://legal237.com'}/payment/cancelled`,
       fail_url: `${process.env.BASE_URL || 'https://legal237.com'}/payment/failed`,
@@ -237,9 +251,9 @@ async function handlePaymentInit(body, headers) {
     // Save transaction to database
     const insertData = {
       document_type: documentType,
-      customer_name: customerName,
-      customer_email: customerEmail,
-      customer_phone: customerPhone,
+      customer_name: finalCustomerName,
+      customer_email: finalCustomerEmail,
+      customer_phone: finalCustomerPhone,
       amount: amount,
       currency: currency,
       payment_method: 'MOBILE_MONEY', // or use the actual payment method
@@ -267,9 +281,9 @@ async function handlePaymentInit(body, headers) {
       });
       console.error('Attempted to insert:', {
         document_type: documentType,
-        customer_name: customerName,
-        customer_email: customerEmail,
-        customer_phone: customerPhone,
+        customer_name: finalCustomerName,
+        customer_email: finalCustomerEmail,
+        customer_phone: finalCustomerPhone,
         amount: amount,
         currency: currency,
         user_id: userId,
