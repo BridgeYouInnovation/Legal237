@@ -171,7 +171,7 @@ exports.handler = async (event, context) => {
         body: JSON.stringify({ 
           success: true, 
           status: 'API is running',
-          version: '4.3.0-payment-method-field-removed',
+          version: '4.5.0-duplicate-prevention-enhanced',
           timestamp: new Date().toISOString(),
           database_status: dbStatus,
           supabase_config: {
