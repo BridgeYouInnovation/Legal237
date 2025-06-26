@@ -171,7 +171,7 @@ exports.handler = async (event, context) => {
         body: JSON.stringify({ 
           success: true, 
           status: 'API is running',
-          version: '4.2.0-payin-api-fixed',
+          version: '4.3.0-payment-method-field-removed',
           timestamp: new Date().toISOString(),
           database_status: dbStatus,
           supabase_config: {
@@ -476,8 +476,8 @@ async function handlePaymentProcess(body, headers) {
         customer_phone_number: formattedPhone,
         customer_name: transaction.customer_name,
         customer_email: transaction.customer_email,
-        customer_lang: transaction.language || 'en',
-        payment_method: payment_method
+        customer_lang: transaction.language || 'en'
+        // Note: payment_method is not included as My-CoolPay auto-detects based on phone number
       };
 
       // Use My-CoolPay's mobile money payment endpoint
