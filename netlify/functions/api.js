@@ -104,6 +104,10 @@ exports.handler = async (event, context) => {
       return await handlePaymentInit(body, headers);
     }
     
+    if (path === '/payment/process' && method === 'POST') {
+      return await handlePaymentProcess(body, headers);
+    }
+    
     if (path.startsWith('/payment/status/') && method === 'GET') {
       const transactionId = path.split('/').pop();
       return await handlePaymentStatus(transactionId, headers);
@@ -184,6 +188,7 @@ exports.handler = async (event, context) => {
           },
           available_endpoints: [
             'POST /api/payment/init',
+            'POST /api/payment/process',
             'GET /api/payment/status/{transactionId}',
             'GET /api/payment/documents/{documentType}',
             'GET /api/payment/service-status',
@@ -403,6 +408,181 @@ async function handlePaymentInit(body, headers) {
       statusCode: 500,
       headers,
       body: JSON.stringify({ error: 'Payment initialization failed' })
+    };
+  }
+}
+
+// Payment processing handler - actually process the payment with My-CoolPay
+async function handlePaymentProcess(body, headers) {
+  console.log('Payment process request body:', body);
+  
+  const { transaction_id, phone_number, payment_method = 'MTN' } = body;
+
+  if (!transaction_id || !phone_number) {
+    return {
+      statusCode: 400,
+      headers,
+      body: JSON.stringify({ error: 'Missing required fields: transaction_id, phone_number' })
+    };
+  }
+
+  try {
+    // Get the transaction from database
+    const { data: transaction, error: fetchError } = await supabase
+      .from('payment_transactions')
+      .select('*')
+      .eq('payment_reference', transaction_id)
+      .single();
+
+    if (fetchError || !transaction) {
+      console.error('Transaction not found:', fetchError);
+      return {
+        statusCode: 404,
+        headers,
+        body: JSON.stringify({ error: 'Transaction not found' })
+      };
+    }
+
+    // Format phone number for My-CoolPay
+    let formattedPhone = phone_number;
+    if (formattedPhone.startsWith('+237')) {
+      formattedPhone = formattedPhone.replace('+237', '');
+    }
+    if (formattedPhone.startsWith('237')) {
+      formattedPhone = formattedPhone.substring(3);
+    }
+
+    // Update transaction status to processing
+    const { error: updateError } = await supabase
+      .from('payment_transactions')
+      .update({ 
+        status: 'processing',
+        payment_method: payment_method,
+        updated_at: new Date().toISOString()
+      })
+      .eq('payment_reference', transaction_id);
+
+    if (updateError) {
+      console.error('Failed to update transaction status:', updateError);
+    }
+
+    // Call My-CoolPay's mobile money payment API
+    try {
+      const paymentData = {
+        transaction_amount: transaction.amount,
+        transaction_currency: transaction.currency,
+        transaction_reason: `Payment for ${transaction.document_type}`,
+        app_transaction_ref: transaction_id,
+        customer_phone_number: formattedPhone,
+        customer_name: transaction.customer_name,
+        customer_email: transaction.customer_email,
+        customer_lang: transaction.language || 'en',
+        payment_method: payment_method
+      };
+
+      // Use My-CoolPay's mobile money payment endpoint
+      const paymentUrl = `${MYCOOLPAY_CONFIG.baseUrl}/${MYCOOLPAY_CONFIG.publicKey}/mobilemoney`;
+      console.log('Calling My-CoolPay mobile money API:', paymentUrl);
+      console.log('Payment data:', paymentData);
+      
+      const paymentResponse = await axios.post(paymentUrl, paymentData, {
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        timeout: 45000 // 45 second timeout for mobile money payments
+      });
+
+      const paymentResult = paymentResponse.data;
+      console.log('My-CoolPay mobile money response:', paymentResult);
+      
+      if (paymentResult.status === 'success' || paymentResult.status === 'pending') {
+        // Update transaction with payment details
+        const { error: paymentUpdateError } = await supabase
+          .from('payment_transactions')
+          .update({
+            status: paymentResult.status === 'success' ? 'completed' : 'processing',
+            webhook_data: {
+              ...transaction.webhook_data,
+              payment_response: paymentResult,
+              payment_initiated_at: new Date().toISOString()
+            },
+            paid_at: paymentResult.status === 'success' ? new Date().toISOString() : null,
+            updated_at: new Date().toISOString()
+          })
+          .eq('payment_reference', transaction_id);
+
+        if (paymentUpdateError) {
+          console.error('Failed to update payment details:', paymentUpdateError);
+        }
+
+        // If payment completed immediately, grant document access
+        if (paymentResult.status === 'success') {
+          const { error: accessError } = await supabase
+            .from('document_access')
+            .upsert({
+              user_id: transaction.user_id || transaction.customer_email,
+              document_type: transaction.document_type,
+              granted_at: new Date().toISOString(),
+              payment_reference: transaction_id
+            });
+
+          if (accessError) {
+            console.error('Failed to grant document access:', accessError);
+          }
+        }
+
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({
+            success: true,
+            status: paymentResult.status,
+            message: paymentResult.message || 'Payment initiated successfully',
+            transaction_id: transaction_id,
+            payment_method: payment_method
+          })
+        };
+      } else {
+        throw new Error(`Payment failed: ${paymentResult.message || 'Unknown error'}`);
+      }
+
+    } catch (apiError) {
+      console.error('My-CoolPay mobile money API error:', {
+        status: apiError.response?.status,
+        statusText: apiError.response?.statusText,
+        data: apiError.response?.data,
+        message: apiError.message
+      });
+
+      // Update transaction status to failed
+      await supabase
+        .from('payment_transactions')
+        .update({ 
+          status: 'failed',
+          error_message: apiError.response?.data?.message || apiError.message,
+          updated_at: new Date().toISOString()
+        })
+        .eq('payment_reference', transaction_id);
+
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({
+          success: false,
+          error: `Payment processing failed: ${apiError.response?.data?.message || apiError.message}`
+        })
+      };
+    }
+
+  } catch (error) {
+    console.error('Payment processing error:', error);
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({ 
+        success: false,
+        error: 'Payment processing failed' 
+      })
     };
   }
 }
