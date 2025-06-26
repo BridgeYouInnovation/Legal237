@@ -3,7 +3,7 @@ const crypto = require('crypto');
 
 class MyCoolPayService {
   constructor() {
-    this.baseURL = 'https://my-coolpay.com/api/v1';
+    this.baseURL = 'https://my-coolpay.com/api';
     this.publicKey = process.env.MYCOOLPAY_PUBLIC_KEY;
     this.privateKey = process.env.MYCOOLPAY_PRIVATE_KEY;
     this.merchantId = process.env.MYCOOLPAY_MERCHANT_ID;
@@ -24,23 +24,20 @@ class MyCoolPayService {
   /**
    * Get document pricing based on type
    */
-  getDocumentInfo(documentType, language = 'en') {
+  getDocumentInfo(documentType) {
     const documents = {
       'penal_code': {
-        name: language === 'fr' ? 'Code Pénal du Cameroun' : 'Cameroon Penal Code',
-        description: language === 'fr' ? 'Code pénal complet avec toutes les lois' : 'Complete penal code with all laws',
+        name: 'Complete Cameroon Penal Code',
         price: 2000,
         currency: 'XAF'
       },
       'criminal_procedure': {
-        name: language === 'fr' ? 'Procédure Pénale du Cameroun' : 'Cameroon Criminal Procedure',
-        description: language === 'fr' ? 'Procédures complètes du système judiciaire' : 'Complete judicial system procedures',
+        name: 'Complete Cameroon Criminal Procedure',
         price: 2000,
         currency: 'XAF'
       },
       'full_package': {
-        name: language === 'fr' ? 'Package Complet' : 'Complete Package',
-        description: language === 'fr' ? 'Tous les documents légaux' : 'All legal documents',
+        name: 'Complete Legal Package',
         price: 3500,
         currency: 'XAF'
       }
@@ -50,54 +47,71 @@ class MyCoolPayService {
   }
 
   /**
-   * Initialize payment with My-CoolPay
+   * Format phone number for My-CoolPay (remove +237 prefix)
    */
-  async initiatePayment(orderData) {
+  formatPhoneNumber(phone) {
+    if (!phone) return '';
+    
+    // Remove any non-digit characters
+    const cleaned = phone.replace(/\D/g, '');
+    
+    // If it starts with 237, remove it
+    if (cleaned.startsWith('237')) {
+      return cleaned.substring(3);
+    }
+    
+    return cleaned;
+  }
+
+  /**
+   * Initialize payment with My-CoolPay using the paylink API
+   */
+  async initiatePayment(paymentRequest) {
     try {
-      const timestamp = Date.now().toString();
-      const documentInfo = this.getDocumentInfo(orderData.documentType, orderData.language);
+      const documentInfo = this.getDocumentInfo(paymentRequest.documentType);
+      
+      // Generate unique transaction reference
+      const appTransactionRef = paymentRequest.transactionId || 
+        `tx_${Date.now()}_${paymentRequest.userId?.replace(/[^a-zA-Z0-9]/g, '')}_${Math.random().toString(36).substr(2, 8)}`;
       
       const paymentData = {
-        merchant_id: this.merchantId,
-        public_key: this.publicKey,
-        transaction_id: orderData.transactionId,
-        amount: documentInfo.price,
-        currency: documentInfo.currency,
-        description: `Purchase of ${documentInfo.name}`,
-        customer_name: orderData.customer.fullname,
-        customer_email: orderData.customer.email,
-        customer_phone: orderData.customer.phone,
-        payment_method: orderData.paymentMethod, // 'MTN' or 'ORANGEMONEY'
-        callback_url: `${process.env.BASE_URL}/api/webhooks/mycoolpay`,
-        return_url: `${process.env.BASE_URL}/payment/success`,
-        cancel_url: `${process.env.BASE_URL}/payment/cancelled`,
-        fail_url: `${process.env.BASE_URL}/payment/failed`,
-        metadata: {
-          documentType: orderData.documentType,
-          language: orderData.language,
-          userId: orderData.userId
-        }
+        transaction_amount: documentInfo.price,
+        transaction_currency: documentInfo.currency,
+        transaction_reason: documentInfo.name,
+        app_transaction_ref: appTransactionRef,
+        customer_phone_number: this.formatPhoneNumber(paymentRequest.customerPhone),
+        customer_name: paymentRequest.customerName,
+        customer_email: paymentRequest.customerEmail,
+        customer_lang: "en"
       };
 
-      const signature = this.generateSignature(paymentData, timestamp);
-
-      const response = await axios.post(`${this.baseURL}/payment/init`, paymentData, {
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Timestamp': timestamp,
-          'X-Signature': signature,
-          'Authorization': `Bearer ${this.publicKey}`
-        },
-        timeout: 30000
+      console.log('Initiating My-CoolPay payment:', {
+        ...paymentData,
+        customer_phone_number: paymentData.customer_phone_number
       });
 
-      if (response.data.success) {
+      // Use the correct paylink endpoint
+      const response = await axios.post(
+        `${this.baseURL}/${this.publicKey}/paylink`,
+        paymentData,
+        {
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          timeout: 30000
+        }
+      );
+
+      console.log('My-CoolPay response:', response.data);
+
+      if (response.data.status === 'success') {
         return {
           success: true,
-          data: response.data.data,
-          payment_url: response.data.data.payment_url,
-          transaction_id: response.data.data.transaction_id,
-          reference: response.data.data.reference
+          payment_url: response.data.payment_url,
+          transaction_ref: response.data.transaction_ref,
+          app_transaction_ref: appTransactionRef,
+          amount: documentInfo.price,
+          currency: documentInfo.currency
         };
       } else {
         return {
@@ -116,45 +130,49 @@ class MyCoolPayService {
   }
 
   /**
-   * Verify payment status
+   * Verify payment status (for webhook processing)
    */
-  async verifyPayment(transactionId) {
+  async verifyPayment(transactionRef) {
     try {
-      const timestamp = Date.now().toString();
-      const data = { transaction_id: transactionId };
-      const signature = this.generateSignature(data, timestamp);
-
-      const response = await axios.post(`${this.baseURL}/payment/verify`, data, {
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Timestamp': timestamp,
-          'X-Signature': signature,
-          'Authorization': `Bearer ${this.privateKey}`
-        },
-        timeout: 15000
-      });
-
+      // For now, we'll rely on webhook data since My-CoolPay paylink API
+      // doesn't provide a separate verification endpoint in the docs
       return {
         success: true,
-        status: response.data.data.status,
-        data: response.data.data
+        status: 'pending', // Will be updated by webhook
+        transaction_ref: transactionRef
       };
-
     } catch (error) {
-      console.error('Payment verification error:', error.response?.data || error.message);
+      console.error('Payment verification error:', error.message);
       return {
         success: false,
-        error: error.response?.data?.message || 'Verification failed'
+        error: 'Verification failed'
       };
     }
   }
 
   /**
-   * Validate webhook signature
+   * Process webhook notification
    */
-  validateWebhookSignature(payload, signature, timestamp) {
-    const expectedSignature = this.generateSignature(payload, timestamp);
-    return expectedSignature === signature;
+  async processWebhook(webhookData) {
+    try {
+      console.log('Processing My-CoolPay webhook:', webhookData);
+      
+      return {
+        success: true,
+        transaction_ref: webhookData.transaction_ref || webhookData.app_transaction_ref,
+        status: webhookData.status,
+        amount: webhookData.amount,
+        currency: webhookData.currency,
+        customer_phone: webhookData.customer_phone,
+        payment_method: webhookData.payment_method
+      };
+    } catch (error) {
+      console.error('Webhook processing error:', error.message);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
   }
 
   /**
@@ -168,7 +186,7 @@ class MyCoolPayService {
         return {
           success: true,
           status: verification.data.status,
-          transaction_id: verification.data.transaction_id,
+          transaction_id: verification.data.transaction_ref,
           amount: verification.data.amount,
           currency: verification.data.currency,
           customer: verification.data.customer,

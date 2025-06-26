@@ -11,48 +11,52 @@ const router = express.Router();
  */
 router.post('/init', async (req, res) => {
   try {
-    const { documentType, customer, paymentMethod, language = 'en', userId } = req.body;
+    const { 
+      documentType, 
+      customerName, 
+      customerEmail, 
+      customerPhone, 
+      userId 
+    } = req.body;
 
     // Validate required fields
-    if (!documentType || !customer || !paymentMethod) {
+    if (!documentType || !customerName || !customerEmail || !customerPhone) {
       return res.status(400).json({
         success: false,
-        error: 'Missing required fields: documentType, customer, paymentMethod'
+        error: 'Missing required fields: documentType, customerName, customerEmail, customerPhone'
       });
     }
 
-    if (!customer.fullname || !customer.email || !customer.phone) {
-      return res.status(400).json({
-        success: false,
-        error: 'Missing customer information: fullname, email, phone'
-      });
-    }
+    const documentInfo = myCoolPayService.getDocumentInfo(documentType);
+    
+    // Generate transaction ID
+    const timestamp = Date.now();
+    const userIdSafe = userId ? userId.replace(/[^a-zA-Z0-9]/g, '') : 'guest';
+    const transactionId = `tx_${timestamp}_${userIdSafe}_${Math.random().toString(36).substr(2, 8)}`;
 
-    // Format phone number for Cameroon
-    let phone = customer.phone.replace(/\s/g, '');
-    if (phone.startsWith('6')) {
-      phone = '237' + phone;
-    } else if (!phone.startsWith('237')) {
-      phone = '237' + phone;
+    // Determine user_id for database (handle non-UUID values)
+    let dbUserId = null;
+    if (userId && userId.length === 36 && userId.includes('-')) {
+      // Looks like a UUID
+      dbUserId = userId;
     }
-
-    const transactionId = uuidv4();
-    const documentInfo = myCoolPayService.getDocumentInfo(documentType, language);
 
     // Save transaction to database
     const transactionData = {
       id: transactionId,
       document_type: documentType,
-      customer_name: customer.fullname,
-      customer_email: customer.email,
-      customer_phone: phone,
+      customer_name: customerName,
+      customer_email: customerEmail,
+      customer_phone: customerPhone,
       amount: documentInfo.price,
       currency: documentInfo.currency,
-      payment_method: paymentMethod,
-      language: language,
-      user_id: userId,
+      user_id: dbUserId, // Will be null for non-UUID userIds
       status: 'pending',
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
+      webhook_data: JSON.stringify({ 
+        original_user_id: userId,
+        app_transaction_ref: transactionId 
+      })
     };
 
     await supabaseService.saveTransaction(transactionData);
@@ -61,20 +65,16 @@ router.post('/init', async (req, res) => {
     const paymentResult = await myCoolPayService.initiatePayment({
       transactionId,
       documentType,
-      customer: {
-        fullname: customer.fullname,
-        email: customer.email,
-        phone: phone
-      },
-      paymentMethod,
-      language,
+      customerName,
+      customerEmail,
+      customerPhone,
       userId
     });
 
     if (paymentResult.success) {
-      // Update transaction with payment reference
+      // Update transaction with My-CoolPay reference
       await supabaseService.updateTransactionStatus(transactionId, 'initiated', {
-        payment_reference: paymentResult.reference,
+        mycoolpay_transaction_ref: paymentResult.transaction_ref,
         payment_url: paymentResult.payment_url
       });
 
@@ -82,10 +82,19 @@ router.post('/init', async (req, res) => {
         success: true,
         transaction_id: transactionId,
         payment_url: paymentResult.payment_url,
-        reference: paymentResult.reference,
-        amount: documentInfo.price,
-        currency: documentInfo.currency,
-        message: 'Payment initialized successfully'
+        amount: paymentResult.amount,
+        currency: paymentResult.currency,
+        mycoolpay_transaction_ref: paymentResult.transaction_ref,
+        payment_data: {
+          transaction_amount: paymentResult.amount,
+          transaction_currency: paymentResult.currency,
+          transaction_reason: documentInfo.name,
+          app_transaction_ref: paymentResult.app_transaction_ref,
+          customer_phone_number: myCoolPayService.formatPhoneNumber(customerPhone),
+          customer_name: customerName,
+          customer_email: customerEmail,
+          customer_lang: "en"
+        }
       });
     } else {
       // Update transaction status to failed
