@@ -171,7 +171,7 @@ exports.handler = async (event, context) => {
         body: JSON.stringify({ 
           success: true, 
           status: 'API is running',
-          version: '4.0.0-official-mycoolpay-integration',
+          version: '4.1.0-payment-processing-enabled',
           timestamp: new Date().toISOString(),
           database_status: dbStatus,
           supabase_config: {
