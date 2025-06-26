@@ -167,7 +167,7 @@ exports.handler = async (event, context) => {
         body: JSON.stringify({ 
           success: true, 
           status: 'API is running',
-          version: '2.0.0-fixed-amount-calculation',
+          version: '3.0.0-mycoolpay-paylink-api',
           timestamp: new Date().toISOString(),
           database_status: dbStatus,
           supabase_config: {
@@ -266,6 +266,7 @@ async function handlePaymentInit(body, headers) {
     // Call My-CoolPay paylink API to get payment URL
     console.log('Calling My-CoolPay paylink API with:', paylinkData);
     
+    let paylinkResult;
     try {
       const paylinkResponse = await axios.post(`${MYCOOLPAY_CONFIG.baseUrl}/paylink`, paylinkData, {
         headers: {
@@ -276,7 +277,7 @@ async function handlePaymentInit(body, headers) {
         timeout: 30000 // 30 second timeout
       });
 
-      const paylinkResult = paylinkResponse.data;
+      paylinkResult = paylinkResponse.data;
       console.log('My-CoolPay paylink response:', paylinkResult);
     } catch (apiError) {
       console.error('My-CoolPay API error:', {
