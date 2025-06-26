@@ -297,9 +297,8 @@ async function handlePaymentInit(body, headers) {
           .eq('id', existingTx.id);
       }
       
-      // Wait 3 seconds for My-CoolPay's system to process the cancellation
-      console.log('Waiting 3 seconds for cancellation to process...');
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      // Allow immediate processing after cancellation
+      console.log('Existing transactions cancelled, proceeding with new payment...');
     }
 
     // Include original userId in transaction reference for tracking
@@ -342,7 +341,7 @@ async function handlePaymentInit(body, headers) {
           'Content-Type': 'application/json'
           // No Authorization header needed - authentication via public key in URL
         },
-        timeout: 30000 // 30 second timeout
+        timeout: 15000 // 15 second timeout to prevent function timeout
       });
 
       paylinkResult = paylinkResponse.data;
@@ -354,13 +353,23 @@ async function handlePaymentInit(body, headers) {
       }
       
     } catch (apiError) {
-      console.error('My-CoolPay API error:', {
+      console.error('My-CoolPay API error details:', {
         status: apiError.response?.status,
         statusText: apiError.response?.statusText,
         data: apiError.response?.data,
-        message: apiError.message
+        message: apiError.message,
+        url: apiError.config?.url,
+        method: apiError.config?.method,
+        timeout: apiError.code === 'ECONNABORTED'
       });
-      throw new Error(`My-CoolPay API error: ${apiError.response?.status || 'Network error'} - ${apiError.response?.data?.message || apiError.message}`);
+      
+      // Return more specific error information
+      const errorMessage = apiError.response?.data?.message || 
+                          apiError.response?.statusText || 
+                          apiError.message || 
+                          'Unknown API error';
+      
+      throw new Error(`My-CoolPay API error: ${apiError.response?.status || 'Network error'} - ${errorMessage}`);
     }
 
     // Extract payment URL and transaction reference from response
