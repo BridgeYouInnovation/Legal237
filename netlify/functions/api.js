@@ -21,7 +21,7 @@ const MYCOOLPAY_CONFIG = {
   merchantId: process.env.MYCOOLPAY_MERCHANT_ID,
   publicKey: process.env.MYCOOLPAY_PUBLIC_KEY,
   privateKey: process.env.MYCOOLPAY_PRIVATE_KEY,
-  baseUrl: 'https://my-coolpay.com/api/v1'
+  baseUrl: 'https://my-coolpay.com/api'
 };
 
 // Validate API keys are present
@@ -167,7 +167,7 @@ exports.handler = async (event, context) => {
         body: JSON.stringify({ 
           success: true, 
           status: 'API is running',
-          version: '3.1.0-temporary-payment-url',
+          version: '4.0.0-official-mycoolpay-integration',
           timestamp: new Date().toISOString(),
           database_status: dbStatus,
           supabase_config: {
@@ -234,7 +234,16 @@ async function handlePaymentInit(body, headers) {
   // Extract customer info - prioritize direct fields, then customer object, then fallbacks
   const finalCustomerName = customerName || customer?.fullname || customer?.name || 'Guest User';
   const finalCustomerEmail = customerEmail || customer?.email || email;
-  const finalCustomerPhone = customerPhone || customer?.phone || phone;
+  let finalCustomerPhone = customerPhone || customer?.phone || phone;
+  
+  // Format phone number for My-CoolPay (they expect local format like "699009900")
+  if (finalCustomerPhone && finalCustomerPhone.startsWith('+237')) {
+    finalCustomerPhone = finalCustomerPhone.replace('+237', '');
+  }
+  if (finalCustomerPhone && finalCustomerPhone.startsWith('237')) {
+    finalCustomerPhone = finalCustomerPhone.substring(3);
+  }
+  console.log('Formatted phone number for My-CoolPay:', finalCustomerPhone);
 
   // Handle user_id - generate UUID if not a valid UUID format
   let finalUserId = userId;
@@ -263,14 +272,51 @@ async function handlePaymentInit(body, headers) {
       customer_lang: 'en'
     };
 
-    // For now, create a temporary payment URL that redirects to My-CoolPay homepage with payment info
-    // TODO: Replace with actual My-CoolPay API integration once we have correct endpoint docs
-    console.log('Creating temporary payment URL - My-CoolPay API integration pending');
+    // Call My-CoolPay paylink API with correct endpoint format
+    console.log('Calling My-CoolPay paylink API with:', paylinkData);
     
-    const checkoutUrl = `https://my-coolpay.com/?action=pay&amount=${amount}&currency=${currency}&ref=${transactionId}&description=${encodeURIComponent(docInfo.description)}&email=${encodeURIComponent(finalCustomerEmail)}&phone=${encodeURIComponent(finalCustomerPhone)}`;
-    const mycoolpayTransactionRef = `temp_${transactionId}`;
+    let paylinkResult;
+    try {
+      // Use correct endpoint: /api/{public_key}/paylink
+      const paylinkUrl = `${MYCOOLPAY_CONFIG.baseUrl}/${MYCOOLPAY_CONFIG.publicKey}/paylink`;
+      console.log('My-CoolPay paylink URL:', paylinkUrl);
+      
+      const paylinkResponse = await axios.post(paylinkUrl, paylinkData, {
+        headers: {
+          'Content-Type': 'application/json'
+          // No Authorization header needed - authentication via public key in URL
+        },
+        timeout: 30000 // 30 second timeout
+      });
+
+      paylinkResult = paylinkResponse.data;
+      console.log('My-CoolPay paylink response:', paylinkResult);
+      
+      // Check for success status
+      if (paylinkResult.status !== 'success') {
+        throw new Error(`My-CoolPay API returned non-success status: ${paylinkResult.status}`);
+      }
+      
+    } catch (apiError) {
+      console.error('My-CoolPay API error:', {
+        status: apiError.response?.status,
+        statusText: apiError.response?.statusText,
+        data: apiError.response?.data,
+        message: apiError.message
+      });
+      throw new Error(`My-CoolPay API error: ${apiError.response?.status || 'Network error'} - ${apiError.response?.data?.message || apiError.message}`);
+    }
+
+    // Extract payment URL and transaction reference from response
+    const checkoutUrl = paylinkResult.payment_url;
+    const mycoolpayTransactionRef = paylinkResult.transaction_ref;
+
+    if (!checkoutUrl) {
+      throw new Error('No payment_url received from My-CoolPay API response');
+    }
     
-    console.log('Generated payment URL:', checkoutUrl);
+    console.log('My-CoolPay payment URL:', checkoutUrl);
+    console.log('My-CoolPay transaction ref:', mycoolpayTransactionRef);
 
     // Save transaction to database
     const insertData = {
