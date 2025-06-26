@@ -286,6 +286,7 @@ async function handlePaymentInit(body, headers) {
       console.log(`Found ${existingTransactions.length} existing pending transaction(s), canceling them...`);
       
       for (const existingTx of existingTransactions) {
+        console.log(`Canceling transaction: ${existingTx.payment_reference}`);
         await supabase
           .from('payment_transactions')
           .update({ 
@@ -295,20 +296,34 @@ async function handlePaymentInit(body, headers) {
           })
           .eq('id', existingTx.id);
       }
+      
+      // Wait 3 seconds for My-CoolPay's system to process the cancellation
+      console.log('Waiting 3 seconds for cancellation to process...');
+      await new Promise(resolve => setTimeout(resolve, 3000));
     }
 
     // Include original userId in transaction reference for tracking
-    const userRef = userId.replace(/[^a-zA-Z0-9]/g, '').substring(0, 20); // Clean userId for reference
-    const transactionId = `tx_${Date.now()}_${userRef}_${Math.random().toString(36).substr(2, 9)}`;
+    const userRef = userId.replace(/[^a-zA-Z0-9]/g, '').substring(0, 15); // Clean userId for reference
+    // Add more randomness and timestamp to ensure uniqueness
+    const timestamp = Date.now();
+    const randomSuffix = Math.random().toString(36).substr(2, 15);
+    const transactionId = `tx_${timestamp}_${userRef}_${randomSuffix}`;
+    
+    console.log(`Creating transaction: ${transactionId}`);
+    console.log(`Cancelled existing transactions for: ${finalCustomerEmail} + ${documentType}`);
+    
+    // Add unique suffix to customer name to avoid duplicate detection
+    const uniqueSuffix = timestamp.toString().substr(-6);
+    const uniqueCustomerName = `${finalCustomerName} #${uniqueSuffix}`;
     
     // Prepare My-CoolPay paylink data
     const paylinkData = {
       transaction_amount: amount,
       transaction_currency: currency,
-      transaction_reason: docInfo.description || 'Legal document purchase',
+      transaction_reason: `${docInfo.description || 'Legal document purchase'} (${uniqueSuffix})`,
       app_transaction_ref: transactionId,
       customer_phone_number: finalCustomerPhone,
-      customer_name: finalCustomerName,
+      customer_name: uniqueCustomerName,
       customer_email: finalCustomerEmail,
       customer_lang: 'en'
     };
@@ -359,10 +374,10 @@ async function handlePaymentInit(body, headers) {
     console.log('My-CoolPay payment URL:', checkoutUrl);
     console.log('My-CoolPay transaction ref:', mycoolpayTransactionRef);
 
-    // Save transaction to database
+    // Save transaction to database (using original customer name, not the modified one)
     const insertData = {
       document_type: documentType,
-      customer_name: finalCustomerName,
+      customer_name: finalCustomerName, // Store original name
       customer_email: finalCustomerEmail,
       customer_phone: finalCustomerPhone,
       amount: amount,
@@ -376,8 +391,10 @@ async function handlePaymentInit(body, headers) {
       webhook_data: { 
         ...paylinkData, 
         original_user_id: userId,
+        original_customer_name: finalCustomerName, // Store original name here too
         mycoolpay_transaction_ref: mycoolpayTransactionRef,
-        our_transaction_id: transactionId
+        our_transaction_id: transactionId,
+        unique_suffix: uniqueSuffix
       }
     };
     
