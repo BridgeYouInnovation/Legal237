@@ -35,13 +35,13 @@ Before deploying, create your My-CoolPay merchant application with these details
    BASE_URL=https://legal237.com
    
    # Supabase
-   SUPABASE_URL=your_supabase_project_url
-   SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+   SUPABASE_URL=https://nfxclmvwwyaajnjhvdwg.supabase.co
+   SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5meGNsbXZ3d3lhYWpuamh2ZHdnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0OTc0MTI1OSwiZXhwIjoyMDY1MzE3MjU5fQ.Gsg15TlYGOPWe1r0zXC_vn1mEnhzi4psmG0KRdO4ZKc
    
    # My-CoolPay
-   MYCOOLPAY_PUBLIC_KEY=your_public_key
-   MYCOOLPAY_PRIVATE_KEY=your_private_key
-   MYCOOLPAY_MERCHANT_ID=your_merchant_id
+   MYCOOLPAY_PUBLIC_KEY=ee31da6d-65b0-4edc-8919-37ada2ab54c8
+   MYCOOLPAY_PRIVATE_KEY=0IP5sgAFZywiPeQ28LORpqpsaeibHBySicMO1W8EAWoODDHr13Wvs4MbZgUKq05u
+   MYCOOLPAY_MERCHANT_ID=ee31da6d-65b0-4edc-8919-37ada2ab54c8
    ```
 
 ## Deployment Options
@@ -305,3 +305,62 @@ For deployment issues:
 3. Test API endpoints
 4. Contact My-CoolPay support if payment issues
 5. Monitor Supabase dashboard for database issues 
+
+## Environment Variables Required
+
+### Supabase Configuration
+```
+SUPABASE_URL=https://nfxclmvwwyaajnjhvdwg.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5meGNsbXZ3d3lhYWpuamh2ZHdnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0OTc0MTI1OSwiZXhwIjoyMDY1MzE3MjU5fQ.Gsg15TlYGOPWe1r0zXC_vn1mEnhzi4psmG0KRdO4ZKc
+```
+
+### My-CoolPay Configuration (Production Keys)
+```
+MYCOOLPAY_PUBLIC_KEY=ee31da6d-65b0-4edc-8919-37ada2ab54c8
+MYCOOLPAY_PRIVATE_KEY=0IP5sgAFZywiPeQ28LORpqpsaeibHBySicMO1W8EAWoODDHr13Wvs4MbZgUKq05u
+MYCOOLPAY_MERCHANT_ID=ee31da6d-65b0-4edc-8919-37ada2ab54c8
+```
+
+### App Configuration
+```
+BASE_URL=https://legal237.com
+NODE_ENV=production
+```
+
+## Netlify Deployment Steps
+
+1. **Set Environment Variables**:
+   - Go to Netlify Dashboard → Site Settings → Environment Variables
+   - Add all variables listed above
+   - Ensure My-CoolPay keys are the production keys (not placeholder values)
+
+2. **Deploy**:
+   - Push to GitHub main branch
+   - Netlify will auto-deploy
+   - Verify deployment at https://legal237.com/.netlify/functions/api/health
+
+3. **Verify Configuration**:
+   - Check health endpoint shows correct version
+   - Verify My-CoolPay config shows real keys (not placeholders)
+   - Test payment initialization works
+
+## My-CoolPay Integration
+
+The platform uses the official My-CoolPay API:
+- **Endpoint Format**: `https://my-coolpay.com/api/{public_key}/paylink`
+- **Authentication**: Public key in URL path (no Authorization header)
+- **Phone Format**: Local format (remove +237 prefix)
+- **Response**: Contains `payment_url` for user redirection
+
+## Security Notes
+
+- ⚠️ **Never commit API keys to git**
+- ✅ All sensitive keys are in .env (gitignored)
+- ✅ Production keys configured on Netlify only
+- ✅ Local development uses same keys via .env file
+
+## Troubleshooting
+
+- **404 on payment URLs**: Check My-CoolPay keys are real (not placeholders)
+- **API errors**: Verify endpoint format matches My-CoolPay documentation
+- **Environment issues**: Check Netlify environment variables are set correctly 
