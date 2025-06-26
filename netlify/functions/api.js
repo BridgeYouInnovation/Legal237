@@ -175,6 +175,13 @@ exports.handler = async (event, context) => {
             hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
             urlPreview: process.env.SUPABASE_URL ? process.env.SUPABASE_URL.substring(0, 30) + '...' : 'missing'
           },
+          mycoolpay_config: {
+            hasPublicKey: !!MYCOOLPAY_CONFIG.publicKey,
+            hasPrivateKey: !!MYCOOLPAY_CONFIG.privateKey,
+            hasMerchantId: !!MYCOOLPAY_CONFIG.merchantId,
+            publicKeyPreview: MYCOOLPAY_CONFIG.publicKey ? MYCOOLPAY_CONFIG.publicKey.substring(0, 20) + '...' : 'missing',
+            baseUrl: MYCOOLPAY_CONFIG.baseUrl
+          },
           available_endpoints: [
             'POST /api/payment/init',
             'GET /api/payment/status/{transactionId}',
