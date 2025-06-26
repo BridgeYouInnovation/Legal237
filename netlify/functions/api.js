@@ -171,7 +171,7 @@ exports.handler = async (event, context) => {
         body: JSON.stringify({ 
           success: true, 
           status: 'API is running',
-          version: '4.1.0-payment-processing-enabled',
+          version: '4.2.0-payin-api-fixed',
           timestamp: new Date().toISOString(),
           database_status: dbStatus,
           supabase_config: {
@@ -481,73 +481,103 @@ async function handlePaymentProcess(body, headers) {
       };
 
       // Use My-CoolPay's mobile money payment endpoint
-      const paymentUrl = `${MYCOOLPAY_CONFIG.baseUrl}/${MYCOOLPAY_CONFIG.publicKey}/mobilemoney`;
-      console.log('Calling My-CoolPay mobile money API:', paymentUrl);
+      const paymentUrl = `${MYCOOLPAY_CONFIG.baseUrl}/${MYCOOLPAY_CONFIG.publicKey}/payin`;
+      console.log('Calling My-CoolPay payin API:', paymentUrl);
       console.log('Payment data:', paymentData);
       
       const paymentResponse = await axios.post(paymentUrl, paymentData, {
         headers: {
           'Content-Type': 'application/json'
         },
-        timeout: 45000 // 45 second timeout for mobile money payments
+        timeout: 30000 // 30 second timeout for payin payments
       });
 
       const paymentResult = paymentResponse.data;
-      console.log('My-CoolPay mobile money response:', paymentResult);
+      console.log('My-CoolPay payin response:', paymentResult);
       
-      if (paymentResult.status === 'success' || paymentResult.status === 'pending') {
-        // Update transaction with payment details
-        const { error: paymentUpdateError } = await supabase
-          .from('payment_transactions')
-          .update({
-            status: paymentResult.status === 'success' ? 'completed' : 'processing',
-            webhook_data: {
-              ...transaction.webhook_data,
-              payment_response: paymentResult,
-              payment_initiated_at: new Date().toISOString()
-            },
-            paid_at: paymentResult.status === 'success' ? new Date().toISOString() : null,
-            updated_at: new Date().toISOString()
-          })
-          .eq('payment_reference', transaction_id);
+      if (paymentResult.status === 'success') {
+        // Check the action from payin response
+        const action = paymentResult.action;
+        
+        if (action === 'REQUIRE_OTP') {
+          // Payment requires OTP - update status to awaiting_otp
+          const { error: paymentUpdateError } = await supabase
+            .from('payment_transactions')
+            .update({
+              status: 'awaiting_otp',
+              webhook_data: {
+                ...transaction.webhook_data,
+                payment_response: paymentResult,
+                payin_initiated_at: new Date().toISOString(),
+                transaction_ref: paymentResult.transaction_ref,
+                action: action
+              },
+              updated_at: new Date().toISOString()
+            })
+            .eq('payment_reference', transaction_id);
 
-        if (paymentUpdateError) {
-          console.error('Failed to update payment details:', paymentUpdateError);
-        }
-
-        // If payment completed immediately, grant document access
-        if (paymentResult.status === 'success') {
-          const { error: accessError } = await supabase
-            .from('document_access')
-            .upsert({
-              user_id: transaction.user_id || transaction.customer_email,
-              document_type: transaction.document_type,
-              granted_at: new Date().toISOString(),
-              payment_reference: transaction_id
-            });
-
-          if (accessError) {
-            console.error('Failed to grant document access:', accessError);
+          if (paymentUpdateError) {
+            console.error('Failed to update payment details:', paymentUpdateError);
           }
-        }
 
-        return {
-          statusCode: 200,
-          headers,
-          body: JSON.stringify({
-            success: true,
-            status: paymentResult.status,
-            message: paymentResult.message || 'Payment initiated successfully',
-            transaction_id: transaction_id,
-            payment_method: payment_method
-          })
-        };
+          return {
+            statusCode: 200,
+            headers,
+            body: JSON.stringify({
+              success: true,
+              status: 'awaiting_otp',
+              message: 'OTP sent to your phone. Please check your SMS and authorize the payment.',
+              transaction_id: transaction_id,
+              payment_method: payment_method,
+              requires_otp: true
+            })
+          };
+        } else if (action === 'PENDING') {
+          // Payment is pending with USSD
+          const ussd = paymentResult.ussd;
+          
+          const { error: paymentUpdateError } = await supabase
+            .from('payment_transactions')
+            .update({
+              status: 'processing',
+              webhook_data: {
+                ...transaction.webhook_data,
+                payment_response: paymentResult,
+                payin_initiated_at: new Date().toISOString(),
+                transaction_ref: paymentResult.transaction_ref,
+                action: action,
+                ussd: ussd
+              },
+              updated_at: new Date().toISOString()
+            })
+            .eq('payment_reference', transaction_id);
+
+          if (paymentUpdateError) {
+            console.error('Failed to update payment details:', paymentUpdateError);
+          }
+
+          return {
+            statusCode: 200,
+            headers,
+            body: JSON.stringify({
+              success: true,
+              status: 'processing',
+              message: `Please dial ${ussd} on your phone to complete the payment.`,
+              transaction_id: transaction_id,
+              payment_method: payment_method,
+              ussd: ussd
+            })
+          };
+        } else {
+          // Unknown action
+          throw new Error(`Unknown action '${action}' in payin response`);
+        }
       } else {
         throw new Error(`Payment failed: ${paymentResult.message || 'Unknown error'}`);
       }
 
     } catch (apiError) {
-      console.error('My-CoolPay mobile money API error:', {
+      console.error('My-CoolPay payin API error:', {
         status: apiError.response?.status,
         statusText: apiError.response?.statusText,
         data: apiError.response?.data,
