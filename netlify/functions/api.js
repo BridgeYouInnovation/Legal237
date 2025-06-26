@@ -268,6 +268,35 @@ async function handlePaymentInit(body, headers) {
   }
 
   try {
+    // Check for existing pending transactions for this user + document combination
+    const { data: existingTransactions, error: checkError } = await supabase
+      .from('payment_transactions')
+      .select('*')
+      .eq('customer_email', finalCustomerEmail)
+      .eq('document_type', documentType)
+      .in('status', ['pending', 'processing', 'awaiting_otp'])
+      .order('created_at', { ascending: false });
+
+    if (checkError) {
+      console.error('Error checking existing transactions:', checkError);
+    }
+
+    // If there's an existing pending transaction, cancel it first
+    if (existingTransactions && existingTransactions.length > 0) {
+      console.log(`Found ${existingTransactions.length} existing pending transaction(s), canceling them...`);
+      
+      for (const existingTx of existingTransactions) {
+        await supabase
+          .from('payment_transactions')
+          .update({ 
+            status: 'cancelled',
+            error_message: 'Cancelled due to new payment attempt',
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingTx.id);
+      }
+    }
+
     // Include original userId in transaction reference for tracking
     const userRef = userId.replace(/[^a-zA-Z0-9]/g, '').substring(0, 20); // Clean userId for reference
     const transactionId = `tx_${Date.now()}_${userRef}_${Math.random().toString(36).substr(2, 9)}`;
