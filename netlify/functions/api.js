@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const { createClient } = require('@supabase/supabase-js');
+const axios = require('axios');
 
 // Initialize Supabase client
 const supabase = createClient(
@@ -250,27 +251,49 @@ async function handlePaymentInit(body, headers) {
     const userRef = userId.replace(/[^a-zA-Z0-9]/g, '').substring(0, 20); // Clean userId for reference
     const transactionId = `tx_${Date.now()}_${userRef}_${Math.random().toString(36).substr(2, 9)}`;
     
-    // Prepare payment data
-    const paymentData = {
-      merchant_id: MYCOOLPAY_CONFIG.merchantId,
-      amount: amount,
-      currency: currency,
-      transaction_id: transactionId,
-      description: docInfo.description || 'Legal document purchase',
+    // Prepare My-CoolPay paylink data
+    const paylinkData = {
+      transaction_amount: amount,
+      transaction_currency: currency,
+      transaction_reason: docInfo.description || 'Legal document purchase',
+      app_transaction_ref: transactionId,
+      customer_phone_number: finalCustomerPhone,
+      customer_name: finalCustomerName,
       customer_email: finalCustomerEmail,
-      customer_phone: finalCustomerPhone,
-      success_url: `${process.env.BASE_URL || 'https://legal237.com'}/payment/success`,
-      cancel_url: `${process.env.BASE_URL || 'https://legal237.com'}/payment/cancelled`,
-      fail_url: `${process.env.BASE_URL || 'https://legal237.com'}/payment/failed`,
-      webhook_url: `${process.env.BASE_URL || 'https://legal237.com'}/api/webhooks/mycoolpay`
+      customer_lang: 'en'
     };
 
-    // Generate signature
-    paymentData.signature = generateSignature(paymentData, MYCOOLPAY_CONFIG.privateKey);
+    // Call My-CoolPay paylink API to get payment URL
+    console.log('Calling My-CoolPay paylink API with:', paylinkData);
+    
+    try {
+      const paylinkResponse = await axios.post(`${MYCOOLPAY_CONFIG.baseUrl}/paylink`, paylinkData, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${MYCOOLPAY_CONFIG.publicKey}`,
+          'X-API-KEY': MYCOOLPAY_CONFIG.publicKey
+        },
+        timeout: 30000 // 30 second timeout
+      });
 
-    // Create complete checkout URL with payment parameters
-    const checkoutParams = new URLSearchParams(paymentData);
-    const checkoutUrl = `${MYCOOLPAY_CONFIG.baseUrl}/checkout?${checkoutParams.toString()}`;
+      const paylinkResult = paylinkResponse.data;
+      console.log('My-CoolPay paylink response:', paylinkResult);
+    } catch (apiError) {
+      console.error('My-CoolPay API error:', {
+        status: apiError.response?.status,
+        statusText: apiError.response?.statusText,
+        data: apiError.response?.data,
+        message: apiError.message
+      });
+      throw new Error(`My-CoolPay API error: ${apiError.response?.status || 'Network error'} - ${apiError.response?.data?.message || apiError.message}`);
+    }
+
+    const checkoutUrl = paylinkResult.payment_url || paylinkResult.data?.payment_url;
+    const mycoolpayTransactionRef = paylinkResult.transaction_ref || paylinkResult.data?.transaction_ref;
+
+    if (!checkoutUrl) {
+      throw new Error('No payment URL received from My-CoolPay');
+    }
 
     // Save transaction to database
     const insertData = {
@@ -286,7 +309,12 @@ async function handlePaymentInit(body, headers) {
       status: 'pending',
       payment_reference: transactionId,
       payment_url: checkoutUrl,
-      webhook_data: { ...paymentData, original_user_id: userId }
+      webhook_data: { 
+        ...paylinkData, 
+        original_user_id: userId,
+        mycoolpay_transaction_ref: mycoolpayTransactionRef,
+        our_transaction_id: transactionId
+      }
     };
     
     console.log('Inserting transaction data:', insertData);
@@ -334,7 +362,8 @@ async function handlePaymentInit(body, headers) {
         payment_url: checkoutUrl,
         amount: amount,
         currency: currency,
-        payment_data: paymentData
+        mycoolpay_transaction_ref: mycoolpayTransactionRef,
+        payment_data: paylinkData
       })
     };
 
