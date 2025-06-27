@@ -31,8 +31,8 @@ if (!MYCOOLPAY_CONFIG.publicKey || !MYCOOLPAY_CONFIG.privateKey) {
 
 // Document pricing
 const DOCUMENT_PRICES = {
-  penal_code: { price: 2000, name: 'Penal Code', description: 'Complete Cameroon Penal Code' },
-  criminal_procedure: { price: 2000, name: 'Criminal Procedure', description: 'Criminal Procedure Code' },
+      penal_code: { price: 5000, name: 'Penal Code', description: 'Complete Cameroon Penal Code' },
+    criminal_procedure: { price: 5000, name: 'Criminal Procedure', description: 'Criminal Procedure Code' },
   full_package: { price: 3500, name: 'Full Package', description: 'All legal documents package' }
 };
 

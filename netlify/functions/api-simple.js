@@ -20,13 +20,13 @@ const DOCUMENT_PRICES = {
   'penal_code': {
     name: 'Complete Cameroon Penal Code',
     description: 'Penal Code',
-    price: 2000,
+    price: 5000,
     currency: 'XAF'
   },
   'criminal_procedure': {
     name: 'Complete Cameroon Criminal Procedure',
     description: 'Criminal Procedure Code', 
-    price: 2000,
+    price: 5000,
     currency: 'XAF'
   }
 };

@@ -28,12 +28,12 @@ class MyCoolPayService {
     const documents = {
       'penal_code': {
         name: 'Complete Cameroon Penal Code',
-        price: 2000,
+        price: 5000,
         currency: 'XAF'
       },
       'criminal_procedure': {
         name: 'Complete Cameroon Criminal Procedure',
-        price: 2000,
+        price: 5000,
         currency: 'XAF'
       },
       'full_package': {
