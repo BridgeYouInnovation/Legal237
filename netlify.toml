@@ -1,9 +1,9 @@
 [build]
-  command = "npm run build"
-  publish = "build"
+  command = "cd admin-dashboard && npm install && npm run build"
+  publish = "admin-dashboard/build"
 
 [functions]
-  directory = "netlify/functions"
+  directory = "admin-dashboard/netlify/functions"
 
 # Redirect API calls to serverless functions
 [[redirects]]
