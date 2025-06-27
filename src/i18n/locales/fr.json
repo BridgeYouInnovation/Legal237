@@ -1,0 +1,78 @@
+{
+  "common": {
+    "login": "Connexion",
+    "register": "S'inscrire",
+    "email": "Email",
+    "password": "Mot de passe",
+    "name": "Nom complet",
+    "search": "Rechercher",
+    "loading": "Chargement...",
+    "error": "Erreur",
+    "success": "Succès",
+    "cancel": "Annuler",
+    "save": "Enregistrer",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "back": "Retour",
+    "next": "Suivant",
+    "done": "Terminé"
+  },
+  "auth": {
+    "welcomeBack": "Bon retour",
+    "createAccount": "Créer un compte",
+    "forgotPassword": "Mot de passe oublié?",
+    "noAccount": "Vous n'avez pas de compte?",
+    "hasAccount": "Vous avez déjà un compte?",
+    "anonymousLogin": "Continuer en tant qu'invité",
+    "loginSuccess": "Connexion réussie",
+    "registerSuccess": "Compte créé avec succès"
+  },
+  "home": {
+    "greeting": "Bonjour",
+    "searchPlaceholder": "Rechercher des articles par mot-clé ou numéro...",
+    "penalCode": "Code Pénal",
+    "criminalProcedure": "Code de Procédure Pénale",
+    "aiAssistant": "Assistant Juridique IA",
+    "recentSearches": "Recherches récentes"
+  },
+  "chat": {
+    "askQuestion": "Posez une question juridique...",
+    "dailyLimit": "Limite quotidienne atteinte",
+    "upgradeMessage": "Passez à Pro pour des questions illimitées",
+    "questionsLeft": "questions restantes aujourd'hui",
+    "aiTyping": "L'IA tape...",
+    "citedArticles": "Articles cités"
+  },
+  "subscription": {
+    "choosePlan": "Choisissez votre plan",
+    "monthly": "Mensuel",
+    "yearly": "Annuel",
+    "monthlyPrice": "2 000 XAF/mois",
+    "yearlyPrice": "20 000 XAF/an",
+    "features": {
+      "unlimited": "Questions IA illimitées",
+      "fullAccess": "Accès complet aux articles",
+      "offline": "Mode hors ligne",
+      "bookmarks": "Sauvegarder et marquer les articles"
+    },
+    "paymentMethods": "Méthodes de paiement",
+    "mtnMomo": "MTN Mobile Money",
+    "orangeMoney": "Orange Money",
+    "subscribe": "S'abonner maintenant"
+  },
+  "settings": {
+    "title": "Paramètres",
+    "language": "Langue",
+    "theme": "Thème",
+    "darkMode": "Mode sombre",
+    "subscription": "Abonnement",
+    "support": "Support",
+    "logout": "Déconnexion",
+    "profile": "Profil"
+  },
+  "bookmarks": {
+    "title": "Favoris",
+    "empty": "Aucun favori pour le moment",
+    "emptyDescription": "Sauvegardez des articles pour les lire plus tard"
+  }
+}

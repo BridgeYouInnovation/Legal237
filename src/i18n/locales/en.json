@@ -1,0 +1,78 @@
+{
+  "common": {
+    "login": "Login",
+    "register": "Sign Up",
+    "email": "Email",
+    "password": "Password",
+    "name": "Full Name",
+    "search": "Search",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "back": "Back",
+    "next": "Next",
+    "done": "Done"
+  },
+  "auth": {
+    "welcomeBack": "Welcome Back",
+    "createAccount": "Create Account",
+    "forgotPassword": "Forgot Password?",
+    "noAccount": "Don't have an account?",
+    "hasAccount": "Already have an account?",
+    "anonymousLogin": "Continue as Guest",
+    "loginSuccess": "Login successful",
+    "registerSuccess": "Account created successfully"
+  },
+  "home": {
+    "greeting": "Hello",
+    "searchPlaceholder": "Search articles by keyword or number...",
+    "penalCode": "Penal Code",
+    "criminalProcedure": "Criminal Procedure Code",
+    "aiAssistant": "AI Legal Assistant",
+    "recentSearches": "Recent Searches"
+  },
+  "chat": {
+    "askQuestion": "Ask a legal question...",
+    "dailyLimit": "Daily limit reached",
+    "upgradeMessage": "Upgrade to Pro for unlimited questions",
+    "questionsLeft": "questions left today",
+    "aiTyping": "AI is typing...",
+    "citedArticles": "Cited Articles"
+  },
+  "subscription": {
+    "choosePlan": "Choose Your Plan",
+    "monthly": "Monthly",
+    "yearly": "Yearly",
+    "monthlyPrice": "2,000 XAF/month",
+    "yearlyPrice": "20,000 XAF/year",
+    "features": {
+      "unlimited": "Unlimited AI questions",
+      "fullAccess": "Full article access",
+      "offline": "Offline mode",
+      "bookmarks": "Save & bookmark articles"
+    },
+    "paymentMethods": "Payment Methods",
+    "mtnMomo": "MTN Mobile Money",
+    "orangeMoney": "Orange Money",
+    "subscribe": "Subscribe Now"
+  },
+  "settings": {
+    "title": "Settings",
+    "language": "Language",
+    "theme": "Theme",
+    "darkMode": "Dark Mode",
+    "subscription": "Subscription",
+    "support": "Support",
+    "logout": "Logout",
+    "profile": "Profile"
+  },
+  "bookmarks": {
+    "title": "Bookmarks",
+    "empty": "No bookmarks yet",
+    "emptyDescription": "Save articles to read them later"
+  }
+}
