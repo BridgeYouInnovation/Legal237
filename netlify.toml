@@ -1,5 +1,5 @@
 [build]
-  command = "cd admin-dashboard && npm install && npm run build"
+  command = "cd admin-dashboard && npm install --legacy-peer-deps && npm run build"
   publish = "admin-dashboard/build"
 
 [functions]
