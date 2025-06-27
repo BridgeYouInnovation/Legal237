@@ -39,7 +39,8 @@
     "uuid": "^9.0.1",
     "web-vitals": "^2.1.4",
     "yup": "^1.6.1",
-    "@craco/craco": "^7.1.0"
+    "@craco/craco": "^7.1.0",
+    "ajv": "6.12.6"
   },
   "scripts": {
     "start": "npx craco start",
@@ -74,10 +75,12 @@
   },
   "overrides": {
     "ajv": "6.12.6",
-    "ajv-keywords": "3.5.2"
+    "ajv-keywords": "3.5.2",
+    "ajv-formats": "1.6.1"
   },
   "resolutions": {
     "ajv": "6.12.6",
-    "ajv-keywords": "3.5.2"
+    "ajv-keywords": "3.5.2",
+    "ajv-formats": "1.6.1"
   }
 }
