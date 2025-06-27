@@ -38,19 +38,19 @@
     "typescript": "^4.9.5",
     "uuid": "^9.0.1",
     "web-vitals": "^2.1.4",
-    "yup": "^1.6.1"
+    "yup": "^1.6.1",
+    "@craco/craco": "^7.1.0"
   },
   "scripts": {
-    "start": "craco start",
-    "build": "craco build",
-    "test": "craco test",
+    "start": "npx craco start",
+    "build": "npx craco build",
+    "test": "npx craco test",
     "eject": "react-scripts eject",
     "server": "node server/index.js",
     "dev": "concurrently \"npm run server\" \"npm start\"",
     "build:full": "npm run build && npm run server"
   },
   "devDependencies": {
-    "@craco/craco": "^7.1.0",
     "concurrently": "^8.2.2",
     "nodemon": "^3.0.2"
   },
