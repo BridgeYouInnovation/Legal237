@@ -1,5 +1,5 @@
 [build]
-  command = "cd admin-dashboard && rm -rf node_modules package-lock.json && npm install --legacy-peer-deps && node build-fix.js && npm run build"
+  command = "cd admin-dashboard && rm -rf node_modules package-lock.json && npm install --legacy-peer-deps --force && npm run build"
   publish = "admin-dashboard/build"
   
 [build.environment]

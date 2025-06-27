@@ -1,15 +1,26 @@
-const { execSync } = require('child_process');
+const fs = require('fs');
+const path = require('path');
 
-console.log('Installing compatible AJV versions...');
+console.log('Checking AJV installation...');
 
 try {
-  // Force install specific versions that are compatible
-  execSync('npm install ajv@6.12.6 --save-dev', { stdio: 'inherit' });
-  execSync('npm install ajv-keywords@3.5.2 --save-dev', { stdio: 'inherit' });
-  execSync('npm install schema-utils@3.1.1 --save-dev', { stdio: 'inherit' });
+  // Check if the correct AJV version is installed
+  const packageLockPath = path.join(__dirname, 'package-lock.json');
+  if (fs.existsSync(packageLockPath)) {
+    const packageLock = JSON.parse(fs.readFileSync(packageLockPath, 'utf8'));
+    const ajvVersion = packageLock.dependencies?.ajv?.version || 'not found';
+    console.log('AJV version in package-lock.json:', ajvVersion);
+  }
   
-  console.log('AJV compatibility fix completed successfully');
+  // Check node_modules
+  const ajvPackagePath = path.join(__dirname, 'node_modules', 'ajv', 'package.json');
+  if (fs.existsSync(ajvPackagePath)) {
+    const ajvPackage = JSON.parse(fs.readFileSync(ajvPackagePath, 'utf8'));
+    console.log('AJV version in node_modules:', ajvPackage.version);
+  }
+  
+  console.log('AJV compatibility check completed');
 } catch (error) {
-  console.error('Failed to apply AJV fix:', error.message);
-  process.exit(1);
+  console.error('AJV check error:', error.message);
+  // Don't exit with error - this is just a diagnostic script
 } 
