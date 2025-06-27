@@ -38,20 +38,19 @@
     "typescript": "^4.9.5",
     "uuid": "^9.0.1",
     "web-vitals": "^2.1.4",
-    "yup": "^1.6.1",
-    "@craco/craco": "^7.1.0",
-    "ajv": "6.12.6"
+    "yup": "^1.6.1"
   },
   "scripts": {
-    "start": "npx craco start",
-    "build": "npx craco build",
-    "test": "npx craco test",
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
     "eject": "react-scripts eject",
     "server": "node server/index.js",
     "dev": "concurrently \"npm run server\" \"npm start\"",
     "build:full": "npm run build && npm run server"
   },
   "devDependencies": {
+    "@craco/craco": "^7.1.0",
     "concurrently": "^8.2.2",
     "nodemon": "^3.0.2"
   },
@@ -71,16 +70,6 @@
       "last 1 chrome version",
       "last 1 firefox version",
       "last 1 safari version"
-    ]
-  },
-  "overrides": {
-    "ajv": "6.12.6",
-    "ajv-keywords": "3.5.2",
-    "ajv-formats": "1.6.1"
-  },
-  "resolutions": {
-    "ajv": "6.12.6",
-    "ajv-keywords": "3.5.2",
-    "ajv-formats": "1.6.1"
+        ]
   }
 }
