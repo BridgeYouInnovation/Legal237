@@ -1,6 +1,9 @@
 [build]
-  command = "cd admin-dashboard && npm install --legacy-peer-deps && npm run build"
+  command = "cd admin-dashboard && rm -rf node_modules package-lock.json && npm install --legacy-peer-deps && npm run build"
   publish = "admin-dashboard/build"
+  
+[build.environment]
+  NODE_VERSION = "20"
 
 [functions]
   directory = "admin-dashboard/netlify/functions"
