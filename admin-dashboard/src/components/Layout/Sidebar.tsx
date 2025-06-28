@@ -22,11 +22,11 @@ import {
 const DRAWER_WIDTH = 250;
 
 const menuItems = [
-  { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
-  { text: 'Laws', icon: <LawIcon />, path: '/laws' },
-  { text: 'Lawyers', icon: <LawyerIcon />, path: '/lawyers' },
-  { text: 'Users', icon: <UsersIcon />, path: '/users' },
-  { text: 'Subscriptions', icon: <SubscriptionsIcon />, path: '/subscriptions' },
+  { text: 'Dashboard', icon: <DashboardIcon />, path: '/admin-dashboard' },
+  { text: 'Laws', icon: <LawIcon />, path: '/admin-dashboard/laws' },
+  { text: 'Lawyers', icon: <LawyerIcon />, path: '/admin-dashboard/lawyers' },
+  { text: 'Users', icon: <UsersIcon />, path: '/admin-dashboard/users' },
+  { text: 'Subscriptions', icon: <SubscriptionsIcon />, path: '/admin-dashboard/subscriptions' },
 ];
 
 const Sidebar: React.FC = () => {

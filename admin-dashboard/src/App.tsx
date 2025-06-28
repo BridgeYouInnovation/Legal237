@@ -4,7 +4,13 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { Box } from '@mui/material';
 
-// Components
+// Public Pages
+import LandingPage from './pages/LandingPage';
+import ContactPage from './pages/ContactPage';
+import LawyerApplicationPage from './pages/LawyerApplicationPage';
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
+
+// Admin Components
 import Sidebar from './components/Layout/Sidebar';
 import TopBar from './components/Layout/TopBar';
 import Dashboard from './pages/Dashboard';
@@ -43,7 +49,7 @@ const theme = createTheme({
   },
 });
 
-const ProtectedLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
     <Box sx={{ display: 'flex' }}>
       <Sidebar />
@@ -57,7 +63,7 @@ const ProtectedLayout: React.FC<{ children: React.ReactNode }> = ({ children }) 
   );
 };
 
-const AppRoutes: React.FC = () => {
+const AdminRoutes: React.FC = () => {
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -67,27 +73,27 @@ const AppRoutes: React.FC = () => {
   if (!user) {
     return (
       <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/payment/success" element={<PaymentSuccess />} />
-        <Route path="/payment/cancelled" element={<PaymentCancelled />} />
-        <Route path="/payment/failed" element={<PaymentFailed />} />
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        <Route path="/admin-dashboard/login" element={<Login />} />
+        <Route path="/admin-dashboard/payment/success" element={<PaymentSuccess />} />
+        <Route path="/admin-dashboard/payment/cancelled" element={<PaymentCancelled />} />
+        <Route path="/admin-dashboard/payment/failed" element={<PaymentFailed />} />
+        <Route path="/admin-dashboard/*" element={<Navigate to="/admin-dashboard/login" replace />} />
       </Routes>
     );
   }
 
   return (
-    <ProtectedLayout>
+    <AdminLayout>
       <Routes>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/laws" element={<Laws />} />
-        <Route path="/lawyers" element={<Lawyers />} />
-        <Route path="/users" element={<Users />} />
-        <Route path="/subscriptions" element={<Subscriptions />} />
-        <Route path="/login" element={<Navigate to="/" replace />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="/admin-dashboard" element={<Dashboard />} />
+        <Route path="/admin-dashboard/laws" element={<Laws />} />
+        <Route path="/admin-dashboard/lawyers" element={<Lawyers />} />
+        <Route path="/admin-dashboard/users" element={<Users />} />
+        <Route path="/admin-dashboard/subscriptions" element={<Subscriptions />} />
+        <Route path="/admin-dashboard/login" element={<Navigate to="/admin-dashboard" replace />} />
+        <Route path="/admin-dashboard/*" element={<Navigate to="/admin-dashboard" replace />} />
       </Routes>
-    </ProtectedLayout>
+    </AdminLayout>
   );
 };
 
@@ -97,7 +103,19 @@ const App: React.FC = () => {
       <CssBaseline />
       <Router>
         <AuthProvider>
-          <AppRoutes />
+          <Routes>
+            {/* Public Routes */}
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/contact" element={<ContactPage />} />
+            <Route path="/lawyer-application" element={<LawyerApplicationPage />} />
+            <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+            
+            {/* Admin Routes */}
+            <Route path="/admin-dashboard/*" element={<AdminRoutes />} />
+            
+            {/* Fallback */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
         </AuthProvider>
       </Router>
     </ThemeProvider>
