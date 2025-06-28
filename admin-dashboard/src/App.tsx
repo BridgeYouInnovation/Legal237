@@ -105,6 +105,7 @@ const AdminRoutes: React.FC = () => {
   const { user, loading, supabaseError } = useAuth();
 
   console.log('AdminRoutes render:', { user: !!user, loading, supabaseError });
+  console.log('Current pathname:', window.location.pathname);
 
   if (loading) {
     return (
@@ -134,15 +135,27 @@ const AdminRoutes: React.FC = () => {
 
   if (!user) {
     console.log('No user, showing login routes');
+    console.log('Should redirect to login if on admin-dashboard route');
+    
     return (
       <div style={{ backgroundColor: 'yellow', minHeight: '100vh', padding: '20px' }}>
         <h1 style={{ color: 'red' }}>AdminRoutes - No User</h1>
+        <p>Current path: {window.location.pathname}</p>
         <Routes>
           <Route path="/admin-dashboard/login" element={<Login />} />
           <Route path="/admin-dashboard/debug" element={<DebugInfo />} />
           <Route path="/admin-dashboard/payment/success" element={<PaymentSuccess />} />
           <Route path="/admin-dashboard/payment/cancelled" element={<PaymentCancelled />} />
           <Route path="/admin-dashboard/payment/failed" element={<PaymentFailed />} />
+          <Route 
+            path="/admin-dashboard" 
+            element={
+              <div>
+                <p>Redirecting to login...</p>
+                <Navigate to="/admin-dashboard/login" replace />
+              </div>
+            } 
+          />
           <Route path="/admin-dashboard/*" element={<Navigate to="/admin-dashboard/login" replace />} />
         </Routes>
       </div>
