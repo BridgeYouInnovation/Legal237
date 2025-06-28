@@ -101,6 +101,16 @@ const DebugInfo: React.FC = () => {
   );
 };
 
+// Simple test component to verify routing
+const TestLogin: React.FC = () => {
+  return (
+    <div style={{ backgroundColor: 'orange', minHeight: '100vh', padding: '20px' }}>
+      <h1 style={{ color: 'black', fontSize: '48px' }}>TEST LOGIN COMPONENT WORKING!</h1>
+      <p>This means the route is working, but there might be an issue with the actual Login component.</p>
+    </div>
+  );
+};
+
 const AdminRoutes: React.FC = () => {
   const { user, loading, supabaseError } = useAuth();
 
@@ -142,7 +152,7 @@ const AdminRoutes: React.FC = () => {
         <h1 style={{ color: 'red' }}>AdminRoutes - No User</h1>
         <p>Current path: {window.location.pathname}</p>
         <Routes>
-          <Route path="/admin-dashboard/login" element={<Login />} />
+          <Route path="/admin-dashboard/login" element={<TestLogin />} />
           <Route path="/admin-dashboard/debug" element={<DebugInfo />} />
           <Route path="/admin-dashboard/payment/success" element={<PaymentSuccess />} />
           <Route path="/admin-dashboard/payment/cancelled" element={<PaymentCancelled />} />
