@@ -18,7 +18,6 @@ import Laws from './pages/Laws';
 import Lawyers from './pages/Lawyers';
 import Users from './pages/Users';
 import Subscriptions from './pages/Subscriptions';
-import Login from './pages/Login';
 import PaymentSuccess from './pages/PaymentSuccess';
 import PaymentCancelled from './pages/PaymentCancelled';
 import PaymentFailed from './pages/PaymentFailed';
