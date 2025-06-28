@@ -104,6 +104,8 @@ const DebugInfo: React.FC = () => {
 const AdminRoutes: React.FC = () => {
   const { user, loading, supabaseError } = useAuth();
 
+  console.log('AdminRoutes render:', { user: !!user, loading, supabaseError });
+
   if (loading) {
     return (
       <Box 
@@ -113,8 +115,9 @@ const AdminRoutes: React.FC = () => {
         minHeight="100vh"
         flexDirection="column"
         gap={2}
+        sx={{ backgroundColor: '#f0f0f0', border: '2px solid red' }}
       >
-        <div>Loading authentication...</div>
+        <div style={{ fontSize: '24px', color: 'blue' }}>Loading authentication...</div>
         {supabaseError && (
           <div style={{ color: 'red', fontSize: '14px', textAlign: 'center' }}>
             Error: {supabaseError}
@@ -130,55 +133,69 @@ const AdminRoutes: React.FC = () => {
   }
 
   if (!user) {
+    console.log('No user, showing login routes');
     return (
-      <Routes>
-        <Route path="/admin-dashboard/login" element={<Login />} />
-        <Route path="/admin-dashboard/debug" element={<DebugInfo />} />
-        <Route path="/admin-dashboard/payment/success" element={<PaymentSuccess />} />
-        <Route path="/admin-dashboard/payment/cancelled" element={<PaymentCancelled />} />
-        <Route path="/admin-dashboard/payment/failed" element={<PaymentFailed />} />
-        <Route path="/admin-dashboard/*" element={<Navigate to="/admin-dashboard/login" replace />} />
-      </Routes>
+      <div style={{ backgroundColor: 'yellow', minHeight: '100vh', padding: '20px' }}>
+        <h1 style={{ color: 'red' }}>AdminRoutes - No User</h1>
+        <Routes>
+          <Route path="/admin-dashboard/login" element={<Login />} />
+          <Route path="/admin-dashboard/debug" element={<DebugInfo />} />
+          <Route path="/admin-dashboard/payment/success" element={<PaymentSuccess />} />
+          <Route path="/admin-dashboard/payment/cancelled" element={<PaymentCancelled />} />
+          <Route path="/admin-dashboard/payment/failed" element={<PaymentFailed />} />
+          <Route path="/admin-dashboard/*" element={<Navigate to="/admin-dashboard/login" replace />} />
+        </Routes>
+      </div>
     );
   }
 
+  console.log('User authenticated, showing admin layout');
   return (
-    <AdminLayout>
-      <Routes>
-        <Route path="/admin-dashboard" element={<Dashboard />} />
-        <Route path="/admin-dashboard/laws" element={<Laws />} />
-        <Route path="/admin-dashboard/lawyers" element={<Lawyers />} />
-        <Route path="/admin-dashboard/users" element={<Users />} />
-        <Route path="/admin-dashboard/subscriptions" element={<Subscriptions />} />
-        <Route path="/admin-dashboard/debug" element={<DebugInfo />} />
-        <Route path="/admin-dashboard/login" element={<Navigate to="/admin-dashboard" replace />} />
-        <Route path="/admin-dashboard/*" element={<Navigate to="/admin-dashboard" replace />} />
-      </Routes>
-    </AdminLayout>
+    <div style={{ backgroundColor: 'lightgreen', minHeight: '100vh' }}>
+      <h1 style={{ color: 'darkgreen' }}>AdminRoutes - User Authenticated</h1>
+      <AdminLayout>
+        <Routes>
+          <Route path="/admin-dashboard" element={<Dashboard />} />
+          <Route path="/admin-dashboard/laws" element={<Laws />} />
+          <Route path="/admin-dashboard/lawyers" element={<Lawyers />} />
+          <Route path="/admin-dashboard/users" element={<Users />} />
+          <Route path="/admin-dashboard/subscriptions" element={<Subscriptions />} />
+          <Route path="/admin-dashboard/debug" element={<DebugInfo />} />
+          <Route path="/admin-dashboard/login" element={<Navigate to="/admin-dashboard" replace />} />
+          <Route path="/admin-dashboard/*" element={<Navigate to="/admin-dashboard" replace />} />
+        </Routes>
+      </AdminLayout>
+    </div>
   );
 };
 
 const App: React.FC = () => {
+  console.log('App component rendering');
+  console.log('Current location:', window.location.href);
+  
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Router>
-        <AuthProvider>
-          <Routes>
-            {/* Public Routes */}
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/contact" element={<ContactPage />} />
-            <Route path="/lawyer-application" element={<LawyerApplicationPage />} />
-            <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
-            
-            {/* Admin Routes */}
-            <Route path="/admin-dashboard/*" element={<AdminRoutes />} />
-            
-            {/* Fallback */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </AuthProvider>
-      </Router>
+      <div style={{ border: '3px solid blue', minHeight: '100vh' }}>
+        <h1 style={{ color: 'blue', textAlign: 'center' }}>Legal237 App Root</h1>
+        <Router>
+          <AuthProvider>
+            <Routes>
+              {/* Public Routes */}
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/contact" element={<ContactPage />} />
+              <Route path="/lawyer-application" element={<LawyerApplicationPage />} />
+              <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+              
+              {/* Admin Routes */}
+              <Route path="/admin-dashboard/*" element={<AdminRoutes />} />
+              
+              {/* Fallback */}
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </AuthProvider>
+        </Router>
+      </div>
     </ThemeProvider>
   );
 };
