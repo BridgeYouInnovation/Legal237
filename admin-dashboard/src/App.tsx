@@ -104,9 +104,6 @@ const DebugInfo: React.FC = () => {
 const AdminRoutes: React.FC = () => {
   const { user, loading, supabaseError } = useAuth();
 
-  console.log('AdminRoutes render:', { user: !!user, loading, supabaseError });
-  console.log('Current pathname:', window.location.pathname);
-
   if (loading) {
     return (
       <Box 
@@ -116,9 +113,8 @@ const AdminRoutes: React.FC = () => {
         minHeight="100vh"
         flexDirection="column"
         gap={2}
-        sx={{ backgroundColor: '#f0f0f0', border: '2px solid red' }}
       >
-        <div style={{ fontSize: '24px', color: 'blue' }}>Loading authentication...</div>
+        <div>Loading authentication...</div>
         {supabaseError && (
           <div style={{ color: 'red', fontSize: '14px', textAlign: 'center' }}>
             Error: {supabaseError}
@@ -128,103 +124,67 @@ const AdminRoutes: React.FC = () => {
     );
   }
 
-  // If there's a Supabase error, still show login page but with error message
-  if (supabaseError) {
-    console.error('Supabase error detected:', supabaseError);
-  }
-
   if (!user) {
-    console.log('No user, showing login routes');
-    console.log('Should redirect to login if on admin-dashboard route');
-    
     // Check if we're on the login page specifically
     const isLoginPage = window.location.pathname === '/admin-dashboard/login';
-    console.log('Is login page:', isLoginPage);
     
     if (isLoginPage) {
-      console.log('Rendering Login directly');
       return <Login />;
     }
     
     return (
-      <div style={{ backgroundColor: 'yellow', minHeight: '100vh', padding: '20px' }}>
-        <h1 style={{ color: 'red' }}>AdminRoutes - No User</h1>
-        <p>Current path: {window.location.pathname}</p>
-        <p>Should show login page, but routing to /admin-dashboard/login</p>
-        <button 
-          onClick={() => window.location.href = '/admin-dashboard/login'}
-          style={{ padding: '10px', fontSize: '16px', backgroundColor: 'orange' }}
-        >
-          Go to Login Page (Test)
-        </button>
-        <Routes>
-          <Route path="login" element={<Login />} />
-          <Route path="debug" element={<DebugInfo />} />
-          <Route path="payment/success" element={<PaymentSuccess />} />
-          <Route path="payment/cancelled" element={<PaymentCancelled />} />
-          <Route path="payment/failed" element={<PaymentFailed />} />
-          <Route 
-            path="" 
-            element={
-              <div>
-                <p>Redirecting to login...</p>
-                <Navigate to="/admin-dashboard/login" replace />
-              </div>
-            } 
-          />
-          <Route path="*" element={<Navigate to="/admin-dashboard/login" replace />} />
-        </Routes>
-      </div>
+      <Routes>
+        <Route path="login" element={<Login />} />
+        <Route path="debug" element={<DebugInfo />} />
+        <Route path="payment/success" element={<PaymentSuccess />} />
+        <Route path="payment/cancelled" element={<PaymentCancelled />} />
+        <Route path="payment/failed" element={<PaymentFailed />} />
+        <Route 
+          path="" 
+          element={<Navigate to="/admin-dashboard/login" replace />} 
+        />
+        <Route path="*" element={<Navigate to="/admin-dashboard/login" replace />} />
+      </Routes>
     );
   }
 
-  console.log('User authenticated, showing admin layout');
   return (
-    <div style={{ backgroundColor: 'lightgreen', minHeight: '100vh' }}>
-      <h1 style={{ color: 'darkgreen' }}>AdminRoutes - User Authenticated</h1>
-      <AdminLayout>
-        <Routes>
-          <Route path="" element={<Dashboard />} />
-          <Route path="laws" element={<Laws />} />
-          <Route path="lawyers" element={<Lawyers />} />
-          <Route path="users" element={<Users />} />
-          <Route path="subscriptions" element={<Subscriptions />} />
-          <Route path="debug" element={<DebugInfo />} />
-          <Route path="login" element={<Navigate to="/admin-dashboard" replace />} />
-          <Route path="*" element={<Navigate to="/admin-dashboard" replace />} />
-        </Routes>
-      </AdminLayout>
-    </div>
+    <AdminLayout>
+      <Routes>
+        <Route path="" element={<Dashboard />} />
+        <Route path="laws" element={<Laws />} />
+        <Route path="lawyers" element={<Lawyers />} />
+        <Route path="users" element={<Users />} />
+        <Route path="subscriptions" element={<Subscriptions />} />
+        <Route path="debug" element={<DebugInfo />} />
+        <Route path="login" element={<Navigate to="/admin-dashboard" replace />} />
+        <Route path="*" element={<Navigate to="/admin-dashboard" replace />} />
+      </Routes>
+    </AdminLayout>
   );
 };
 
 const App: React.FC = () => {
-  console.log('App component rendering');
-  console.log('Current location:', window.location.href);
-  
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <div style={{ border: '3px solid blue', minHeight: '100vh' }}>
-        <h1 style={{ color: 'blue', textAlign: 'center' }}>Legal237 App Root</h1>
-        <Router>
-          <AuthProvider>
-            <Routes>
-              {/* Public Routes */}
-              <Route path="/" element={<LandingPage />} />
-              <Route path="/contact" element={<ContactPage />} />
-              <Route path="/lawyer-application" element={<LawyerApplicationPage />} />
-              <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
-              
-              {/* Admin Routes */}
-              <Route path="/admin-dashboard/*" element={<AdminRoutes />} />
-              
-              {/* Fallback */}
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </AuthProvider>
-        </Router>
-      </div>
+      <Router>
+        <AuthProvider>
+          <Routes>
+            {/* Public Routes */}
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/contact" element={<ContactPage />} />
+            <Route path="/lawyer-application" element={<LawyerApplicationPage />} />
+            <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+            
+            {/* Admin Routes */}
+            <Route path="/admin-dashboard/*" element={<AdminRoutes />} />
+            
+            {/* Fallback */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </AuthProvider>
+      </Router>
     </ThemeProvider>
   );
 };
