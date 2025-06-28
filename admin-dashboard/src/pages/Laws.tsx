@@ -40,6 +40,8 @@ interface LawCategory {
   name_fr: string;
   description_en?: string;
   description_fr?: string;
+  article_prefix_en?: string;
+  article_prefix_fr?: string;
   icon?: string;
   color?: string;
   price: number;
@@ -76,6 +78,8 @@ interface NewCategoryForm {
   name_fr: string;
   description_en: string;
   description_fr: string;
+  article_prefix_en: string;
+  article_prefix_fr: string;
   icon: string;
   color: string;
   price: number;
@@ -114,6 +118,8 @@ const Laws: React.FC = () => {
     name_fr: '',
     description_en: '',
     description_fr: '',
+    article_prefix_en: '',
+    article_prefix_fr: '',
     icon: 'document-text',
     color: '#3B82F6',
     price: 1000,
@@ -327,6 +333,8 @@ const Laws: React.FC = () => {
       name_fr: '',
       description_en: '',
       description_fr: '',
+      article_prefix_en: '',
+      article_prefix_fr: '',
       icon: 'document-text',
       color: '#3B82F6',
       price: 1000,
@@ -354,6 +362,8 @@ const Laws: React.FC = () => {
         name_fr: category.name_fr,
         description_en: category.description_en || '',
         description_fr: category.description_fr || '',
+        article_prefix_en: category.article_prefix_en || '',
+        article_prefix_fr: category.article_prefix_fr || '',
         icon: category.icon || 'document-text',
         color: category.color || '#3B82F6',
         price: category.price,
@@ -599,6 +609,22 @@ const Laws: React.FC = () => {
               fullWidth
               multiline
               rows={2}
+            />
+            <TextField
+              label="Article Prefix (English)"
+              value={newCategory.article_prefix_en}
+              onChange={(e) => setNewCategory({...newCategory, article_prefix_en: e.target.value})}
+              fullWidth
+              helperText="e.g., Article, Section, Chapter"
+              placeholder="Article"
+            />
+            <TextField
+              label="Article Prefix (French)"
+              value={newCategory.article_prefix_fr}
+              onChange={(e) => setNewCategory({...newCategory, article_prefix_fr: e.target.value})}
+              fullWidth
+              helperText="e.g., Article, Section, Chapitre"
+              placeholder="Article"
             />
             <TextField
               label="Price (XAF)"
