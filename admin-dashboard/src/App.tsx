@@ -146,18 +146,34 @@ const AdminRoutes: React.FC = () => {
     console.log('No user, showing login routes');
     console.log('Should redirect to login if on admin-dashboard route');
     
+    // Check if we're on the login page specifically
+    const isLoginPage = window.location.pathname === '/admin-dashboard/login';
+    console.log('Is login page:', isLoginPage);
+    
+    if (isLoginPage) {
+      console.log('Rendering TestLogin directly');
+      return <TestLogin />;
+    }
+    
     return (
       <div style={{ backgroundColor: 'yellow', minHeight: '100vh', padding: '20px' }}>
         <h1 style={{ color: 'red' }}>AdminRoutes - No User</h1>
         <p>Current path: {window.location.pathname}</p>
+        <p>Should show login page, but routing to /admin-dashboard/login</p>
+        <button 
+          onClick={() => window.location.href = '/admin-dashboard/login'}
+          style={{ padding: '10px', fontSize: '16px', backgroundColor: 'orange' }}
+        >
+          Go to Login Page (Test)
+        </button>
         <Routes>
-          <Route path="/admin-dashboard/login" element={<TestLogin />} />
-          <Route path="/admin-dashboard/debug" element={<DebugInfo />} />
-          <Route path="/admin-dashboard/payment/success" element={<PaymentSuccess />} />
-          <Route path="/admin-dashboard/payment/cancelled" element={<PaymentCancelled />} />
-          <Route path="/admin-dashboard/payment/failed" element={<PaymentFailed />} />
+          <Route path="login" element={<TestLogin />} />
+          <Route path="debug" element={<DebugInfo />} />
+          <Route path="payment/success" element={<PaymentSuccess />} />
+          <Route path="payment/cancelled" element={<PaymentCancelled />} />
+          <Route path="payment/failed" element={<PaymentFailed />} />
           <Route 
-            path="/admin-dashboard" 
+            path="" 
             element={
               <div>
                 <p>Redirecting to login...</p>
@@ -165,7 +181,7 @@ const AdminRoutes: React.FC = () => {
               </div>
             } 
           />
-          <Route path="/admin-dashboard/*" element={<Navigate to="/admin-dashboard/login" replace />} />
+          <Route path="*" element={<Navigate to="/admin-dashboard/login" replace />} />
         </Routes>
       </div>
     );
@@ -177,14 +193,14 @@ const AdminRoutes: React.FC = () => {
       <h1 style={{ color: 'darkgreen' }}>AdminRoutes - User Authenticated</h1>
       <AdminLayout>
         <Routes>
-          <Route path="/admin-dashboard" element={<Dashboard />} />
-          <Route path="/admin-dashboard/laws" element={<Laws />} />
-          <Route path="/admin-dashboard/lawyers" element={<Lawyers />} />
-          <Route path="/admin-dashboard/users" element={<Users />} />
-          <Route path="/admin-dashboard/subscriptions" element={<Subscriptions />} />
-          <Route path="/admin-dashboard/debug" element={<DebugInfo />} />
-          <Route path="/admin-dashboard/login" element={<Navigate to="/admin-dashboard" replace />} />
-          <Route path="/admin-dashboard/*" element={<Navigate to="/admin-dashboard" replace />} />
+          <Route path="" element={<Dashboard />} />
+          <Route path="laws" element={<Laws />} />
+          <Route path="lawyers" element={<Lawyers />} />
+          <Route path="users" element={<Users />} />
+          <Route path="subscriptions" element={<Subscriptions />} />
+          <Route path="debug" element={<DebugInfo />} />
+          <Route path="login" element={<Navigate to="/admin-dashboard" replace />} />
+          <Route path="*" element={<Navigate to="/admin-dashboard" replace />} />
         </Routes>
       </AdminLayout>
     </div>
