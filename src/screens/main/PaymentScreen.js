@@ -110,7 +110,7 @@ export default function PaymentScreen({ navigation, route }) {
         paymentInstructions: 'Instructions de Paiement',
         authorizePayment: 'Autorisez le paiement sur votre téléphone',
         waitingForPayment: 'En attente de l\'autorisation...',
-        paymentDescription: 'Paiement 100% sécurisé via My-CoolPay',
+        paymentDescription: 'Paiement 100% sécurisé',
         back: 'Retour',
         paymentSteps: {
           info: 'Informations',
@@ -140,7 +140,7 @@ export default function PaymentScreen({ navigation, route }) {
         paymentInstructions: 'Payment Instructions',
         authorizePayment: 'Authorize the payment on your phone',
         waitingForPayment: 'Waiting for authorization...',
-        paymentDescription: '100% secure payment via My-CoolPay',
+        paymentDescription: '100% secure payment',
         back: 'Back',
         paymentSteps: {
           info: 'Information',
@@ -396,15 +396,24 @@ export default function PaymentScreen({ navigation, route }) {
         if (attempts < maxAttempts) {
           setTimeout(checkStatus, 6000)
         } else {
-          // Timeout
+          // Timeout - mark transaction as failed
+          console.log(`⏰ Payment polling timeout after ${maxAttempts} attempts`)
+          try {
+            // Force the transaction to be marked as failed in database
+            await directPaymentService.updateTransactionStatusInDatabase(transactionId, 'failed')
+            console.log('✅ Transaction marked as failed due to polling timeout')
+          } catch (error) {
+            console.error('❌ Error marking transaction as failed:', error)
+          }
+          
           setLoading(false)
           updateProgress(1)
           Alert.alert(
             'Payment Timeout',
-            'Payment verification is taking longer than expected. Please check your transaction history.',
+            'Payment verification is taking longer than expected. The transaction has been marked as failed.',
             [
               {
-                text: 'Check Later',
+                text: 'OK',
                 onPress: () => navigation.navigate('HomeMain')
               },
               {
@@ -420,9 +429,18 @@ export default function PaymentScreen({ navigation, route }) {
         if (attempts < maxAttempts) {
           setTimeout(checkStatus, 6000)
         } else {
+          // Timeout due to error - mark transaction as failed
+          console.log(`⏰ Payment polling timeout due to errors after ${maxAttempts} attempts`)
+          try {
+            await directPaymentService.updateTransactionStatusInDatabase(transactionId, 'failed')
+            console.log('✅ Transaction marked as failed due to polling timeout with errors')
+          } catch (updateError) {
+            console.error('❌ Error marking transaction as failed:', updateError)
+          }
+          
           setLoading(false)
           updateProgress(1)
-          Alert.alert(content.error, 'Unable to verify payment status. Please try again.')
+          Alert.alert(content.error, 'Unable to verify payment status. The transaction has been marked as failed.')
         }
       }
     }
@@ -490,49 +508,51 @@ export default function PaymentScreen({ navigation, route }) {
 
               {/* Document Information */}
               <Card style={[styles.modernCard, styles.documentCard]} elevation={3}>
-                <LinearGradient
-                  colors={[theme.colors.primaryContainer, theme.colors.surfaceVariant]}
-                  style={styles.cardGradient}
-                >
-                  <Card.Content style={styles.cardContent}>
-                    <View style={styles.cardHeader}>
-                      <Icon name="description" size={24} color={theme.colors.primary} />
-                      <Text variant="titleMedium" style={[styles.cardTitle, { color: theme.colors.onSurface }]}>
-                        {content.documentInfo}
-                      </Text>
-                    </View>
-                    
-                    {documentInfo ? (
-                      <View style={styles.documentDetails}>
-                        <Text variant="headlineSmall" style={[styles.documentName, { color: theme.colors.primary }]}>
-                          {documentInfo.name}
+                <View style={styles.cardContentWrapper}>
+                  <LinearGradient
+                    colors={[theme.colors.primaryContainer, theme.colors.surfaceVariant]}
+                    style={styles.cardGradient}
+                  >
+                    <Card.Content style={styles.cardContent}>
+                      <View style={styles.cardHeader}>
+                        <Icon name="description" size={24} color={theme.colors.primary} />
+                        <Text variant="titleMedium" style={[styles.cardTitle, { color: theme.colors.onSurface }]}>
+                          {content.documentInfo}
                         </Text>
-                        <Text variant="bodyMedium" style={[styles.documentDescription, { color: theme.colors.onSurfaceVariant }]}>
-                          {documentInfo.description}
-                        </Text>
-                        
-                        <View style={styles.priceContainer}>
-                          <View style={styles.priceInfo}>
-                            <Text variant="headlineMedium" style={[styles.price, { color: theme.colors.primary }]}>
-                              {documentInfo.price?.toLocaleString()} {documentInfo.currency}
-                            </Text>
-                            <Chip mode="flat" style={styles.priceChip}>
-                              {content.price}
-                            </Chip>
+                      </View>
+                      
+                      {documentInfo ? (
+                        <View style={styles.documentDetails}>
+                          <Text variant="headlineSmall" style={[styles.documentName, { color: theme.colors.primary }]}>
+                            {documentInfo.name}
+                          </Text>
+                          <Text variant="bodyMedium" style={[styles.documentDescription, { color: theme.colors.onSurfaceVariant }]}>
+                            {documentInfo.description}
+                          </Text>
+                          
+                          <View style={styles.priceContainer}>
+                            <View style={styles.priceInfo}>
+                              <Text variant="headlineMedium" style={[styles.price, { color: theme.colors.primary }]}>
+                                {documentInfo.price?.toLocaleString()} {documentInfo.currency}
+                              </Text>
+                              <Chip mode="flat" style={styles.priceChip}>
+                                {content.price}
+                              </Chip>
+                            </View>
+                            <Icon name="verified" size={20} color={theme.colors.primary} />
                           </View>
-                          <Icon name="verified" size={20} color={theme.colors.primary} />
                         </View>
-                      </View>
-                    ) : (
-                      <View style={styles.loadingContainer}>
-                        <ActivityIndicator size="small" color={theme.colors.primary} />
-                        <Text variant="bodyMedium" style={[styles.loadingText, { color: theme.colors.onSurfaceVariant }]}>
-                          Loading document info...
-                        </Text>
-                      </View>
-                    )}
-                  </Card.Content>
-                </LinearGradient>
+                      ) : (
+                        <View style={styles.loadingContainer}>
+                          <ActivityIndicator size="small" color={theme.colors.primary} />
+                          <Text variant="bodyMedium" style={[styles.loadingText, { color: theme.colors.onSurfaceVariant }]}>
+                            Loading document info...
+                          </Text>
+                        </View>
+                      )}
+                    </Card.Content>
+                  </LinearGradient>
+                </View>
               </Card>
 
               {/* Payment Form */}
@@ -766,7 +786,10 @@ const styles = StyleSheet.create({
   },
   cardGradient: {
     borderRadius: 16,
+  },
+  cardContentWrapper: {
     overflow: 'hidden',
+    borderRadius: 16,
   },
   cardContent: {
     padding: 20,

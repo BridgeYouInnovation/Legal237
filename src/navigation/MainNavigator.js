@@ -16,6 +16,7 @@ import SearchScreen from "../screens/main/SearchScreen"
 import PaymentScreen from "../screens/main/PaymentScreen"
 import PaymentSuccessScreen from "../screens/main/PaymentSuccessScreen"
 import SubscriptionScreen from "../screens/main/SubscriptionScreen"
+import LawyersSubscriptionScreen from "../screens/main/LawyersSubscriptionScreen"
 import ArticleDetailScreen from "../screens/main/ArticleDetailScreen"
 
 const Tab = createBottomTabNavigator()
@@ -41,6 +42,7 @@ function FindLawyerStack() {
   return (
     <Stack.Navigator>
       <Stack.Screen name="FindLawyerMain" component={FindLawyerScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="LawyersSubscription" component={LawyersSubscriptionScreen} options={{ title: "Lawyers Subscription" }} />
       <Stack.Screen name="ArticleDetail" component={ArticleDetailScreen} options={{ title: "Article Detail" }} />
       <Stack.Screen name="Chat" component={ChatScreen} options={{ title: "AI Legal Assistant" }} />
       <Stack.Screen name="Payment" component={PaymentScreen} options={{ title: "Payment" }} />

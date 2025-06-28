@@ -4,8 +4,8 @@ import { Text, TextInput, Button, useTheme } from 'react-native-paper'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import Icon from 'react-native-vector-icons/MaterialIcons'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { supabase } from '../../lib/supabase'
 import { useAuthStore } from '../../stores/authStore'
+import smsService from '../../services/smsService'
 
 export default function PhoneAuthScreen({ navigation, route }) {
   const [phoneNumber, setPhoneNumber] = useState('+237 ')
@@ -52,6 +52,7 @@ export default function PhoneAuthScreen({ navigation, route }) {
       verifyButton: 'Verify',
       resendCode: 'Resend Code',
       guestButton: 'Continue as Guest',
+      skipVerification: 'Skip Verification (Dev)',
       codeSentMessage: 'Verification code sent to',
       invalidPhone: 'Please enter a valid Cameroon phone number (9 digits)',
       invalidCode: 'Please enter the verification code',
@@ -70,6 +71,7 @@ export default function PhoneAuthScreen({ navigation, route }) {
       verifyButton: 'Vérifier',
       resendCode: 'Renvoyer le Code',
       guestButton: 'Continuer comme Invité',
+      skipVerification: 'Ignorer Vérification (Dev)',
       codeSentMessage: 'Code de vérification envoyé à',
       invalidPhone: 'Veuillez entrer un numéro de téléphone camerounais valide (9 chiffres)',
       invalidCode: 'Veuillez entrer le code de vérification',
@@ -137,16 +139,14 @@ export default function PhoneAuthScreen({ navigation, route }) {
 
       console.log('Sending SMS to:', formattedPhone)
 
-      // Use Supabase auth with phone (Twilio integration)
-      const { data, error } = await supabase.auth.signInWithOtp({
-        phone: formattedPhone,
-      })
+      // Use custom SMS service with custom message
+      const result = await smsService.sendVerificationSMS(formattedPhone, language)
 
-      if (error) {
-        console.error('Supabase SMS error:', error)
-        Alert.alert('Error', error.message || currentContent.smsError)
+      if (!result.success) {
+        console.error('SMS sending error:', result.error)
+        Alert.alert('Error', result.error || currentContent.smsError)
       } else {
-        console.log('SMS sent successfully:', data)
+        console.log('SMS sent successfully')
         setCodeSent(true)
         setCountdown(60)
         Alert.alert('Success', `${currentContent.codeSentMessage} ${phoneNumber}`)
@@ -193,43 +193,56 @@ export default function PhoneAuthScreen({ navigation, route }) {
 
       console.log('Verifying SMS code for:', formattedPhone)
 
-      const { data, error } = await supabase.auth.verifyOtp({
-        phone: formattedPhone,
-        token: verificationCode,
-        type: 'sms'
-      })
+      // Use custom SMS service to verify code
+      const verificationResult = await smsService.verifyCode(formattedPhone, verificationCode)
 
-      if (error) {
-        console.error('Verification error:', error)
-        Alert.alert('Error', error.message || currentContent.verificationFailed)
+      if (!verificationResult.success) {
+        console.error('Verification error:', verificationResult.error)
+        Alert.alert('Error', verificationResult.error || currentContent.verificationFailed)
         setIsVerifying(false)
       } else {
-        console.log('Verification successful:', data)
+        console.log('Verification successful')
         
-        // Update auth store immediately
-        if (data?.user) {
+        // Create user session
+        const sessionResult = await smsService.createUserSession(formattedPhone)
+        
+        if (sessionResult.success) {
+          // Update auth store immediately
           setUser({
-            id: data.user.id,
-            email: data.user.email,
-            phone: data.user.phone,
-            name: data.user.user_metadata?.full_name || data.user.phone || data.user.email,
+            id: sessionResult.user.id,
+            email: sessionResult.user.email,
+            phone: sessionResult.user.phone,
+            name: sessionResult.user.name,
           })
-        }
-        
-        // Mark onboarding as completed
-        await AsyncStorage.setItem('hasSeenOnboarding', 'true')
-        
-        // Add a small delay to ensure auth state propagates
-        setTimeout(() => {
-          setIsVerifying(false)
-          setLoading(false)
           
-          // Navigate with replace to prevent going back
-          navigation.reset({
-            index: 0,
-            routes: [{ name: 'MainNavigator' }],
-          })
-        }, 500)
+          // Mark onboarding as completed
+          await AsyncStorage.setItem('hasSeenOnboarding', 'true')
+          
+          // Show success message and navigate immediately
+          Alert.alert(
+            'Success', 
+            currentContent.verificationSuccess,
+            [
+              {
+                text: 'OK',
+                onPress: () => {
+                  setIsVerifying(false)
+                  setLoading(false)
+                  
+                  // Navigate with reset to prevent going back
+                  navigation.reset({
+                    index: 0,
+                    routes: [{ name: 'MainNavigator' }],
+                  })
+                }
+              }
+            ],
+            { cancelable: false }
+          )
+        } else {
+          Alert.alert('Error', 'Failed to create user session')
+          setIsVerifying(false)
+        }
         
         return // Don't execute finally block
       }
@@ -365,6 +378,44 @@ export default function PhoneAuthScreen({ navigation, route }) {
             >
               {currentContent.guestButton}
             </Button>
+            
+            {/* Development Skip Button (only show in development) */}
+            {__DEV__ && (
+              <Button
+                mode="text"
+                onPress={async () => {
+                  // Skip verification and login directly
+                  const cleanPhone = phoneNumber.replace(/\D/g, '')
+                  const formattedPhone = `+${cleanPhone}`
+                  
+                  if (validatePhoneNumber(phoneNumber)) {
+                    const sessionResult = await smsService.createUserSession(formattedPhone)
+                    
+                    if (sessionResult.success) {
+                      setUser({
+                        id: sessionResult.user.id,
+                        email: sessionResult.user.email,
+                        phone: sessionResult.user.phone,
+                        name: sessionResult.user.name,
+                      })
+                      
+                      await AsyncStorage.setItem('hasSeenOnboarding', 'true')
+                      
+                      navigation.reset({
+                        index: 0,
+                        routes: [{ name: 'MainNavigator' }],
+                      })
+                    }
+                  } else {
+                    Alert.alert('Error', 'Please enter a valid phone number first')
+                  }
+                }}
+                style={[styles.guestButton, { marginTop: 10 }]}
+                labelStyle={[styles.guestButtonText, { color: theme.colors.error }]}
+              >
+                {currentContent.skipVerification}
+              </Button>
+            )}
           </View>
         </View>
       </TouchableWithoutFeedback>

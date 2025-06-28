@@ -21,15 +21,18 @@ import {
   ActivityIndicator,
   Menu,
   Divider,
-  Button
+  Button,
+  Surface,
+  Badge
 } from "react-native-paper"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { useTranslation } from "react-i18next"
 import { useFocusEffect } from "@react-navigation/native"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import Icon from "react-native-vector-icons/MaterialIcons"
+import { LinearGradient } from 'expo-linear-gradient'
 import aiChatService from "../../services/aiChatService"
-import audioService from "../../services/audioService"
+import { useAuthStore } from "../../stores/authStore"
 
 const { width } = Dimensions.get('window')
 const SIDEBAR_WIDTH = width * 0.75
@@ -43,14 +46,11 @@ export default function ChatScreen({ navigation }) {
   const [showSidebar, setShowSidebar] = useState(false)
   const [menuVisible, setMenuVisible] = useState(false)
   const [currentLanguage, setCurrentLanguage] = useState('en')
-  
-  // Audio-related state
-  const [isPlaying, setIsPlaying] = useState(false)
-  const [audioLoading, setAudioLoading] = useState(false)
 
   const flatListRef = useRef(null)
   const { t } = useTranslation()
   const theme = useTheme()
+  const { user } = useAuthStore()
 
   useEffect(() => {
     initializeChat()
@@ -75,9 +75,6 @@ export default function ChatScreen({ navigation }) {
 
   const initializeChat = async () => {
     try {
-      // Initialize audio service
-      await audioService.initialize()
-      
       // Get user language
       const userLanguage = await AsyncStorage.getItem('user_language')
       setCurrentLanguage(userLanguage || 'en')
@@ -127,8 +124,9 @@ export default function ChatScreen({ navigation }) {
         flatListRef.current?.scrollToEnd({ animated: true })
       }, 100)
 
-      // Get AI response
-      const response = await aiChatService.generateResponse(userMessage, currentLanguage)
+      // Get AI response with user ID for payment checking
+      const userId = user?.id || user?.email || null
+      const response = await aiChatService.generateResponse(userMessage, currentLanguage, userId)
       
       // Update conversations and messages
       const updatedConversation = aiChatService.getCurrentConversation()
@@ -155,6 +153,8 @@ export default function ChatScreen({ navigation }) {
       setLoading(false)
     }
   }
+
+
 
   const createNewConversation = async () => {
     try {
@@ -222,47 +222,7 @@ export default function ChatScreen({ navigation }) {
     }
   }
 
-  const speakMessage = async (text) => {
-    try {
-      if (isPlaying) {
-        // Stop current playback
-        await audioService.stopSpeech()
-        setIsPlaying(false)
-        return
-      }
 
-      setIsPlaying(true)
-      setAudioLoading(true)
-      
-      // Choose voice based on language - using better voices
-      const voice = currentLanguage === 'fr' ? 'nova' : 'echo'
-      
-      // Generate and play speech
-      await audioService.speakText(text, voice)
-      
-      setAudioLoading(false)
-      
-      // Set up a listener to detect when speech ends
-      const checkPlaybackStatus = setInterval(async () => {
-        const playbackStatus = audioService.getPlaybackStatus()
-        if (!playbackStatus) {
-          setIsPlaying(false)
-          clearInterval(checkPlaybackStatus)
-        }
-      }, 1000)
-      
-    } catch (error) {
-      console.error('Error speaking message:', error)
-      setIsPlaying(false)
-      setAudioLoading(false)
-      Alert.alert(
-        currentLanguage === 'fr' ? 'Erreur' : 'Error',
-        currentLanguage === 'fr' 
-          ? 'Impossible de lire le message audio.'
-          : 'Failed to play audio message.'
-      )
-    }
-  }
 
   const clearAllConversations = async () => {
     try {
@@ -403,33 +363,7 @@ export default function ChatScreen({ navigation }) {
             {item.content}
           </Text>
 
-          {item.legalReferences && item.legalReferences.length > 0 && (
-            <View style={styles.referencesContainer}>
-              <Text style={[styles.referencesTitle, { color: theme.colors.onSurface }]}>
-                {currentLanguage === 'fr' ? 'Références légales:' : 'Legal References:'}
-              </Text>
-              {item.legalReferences.map((ref, index) => (
-                <Chip
-                  key={index}
-                  mode="outlined"
-                  compact
-                  style={styles.referenceChip}
-                  onPress={() => {
-                    // Navigate to article detail
-                    if (ref.fullArticle) {
-                      navigation.navigate('ArticleDetail', {
-                        article: ref.fullArticle,
-                        documentType: ref.documentType,
-                        language: currentLanguage
-                      });
-                    }
-                  }}
-                >
-                  {ref.id}
-                </Chip>
-              ))}
-            </View>
-          )}
+
 
           <View style={styles.messageFooter}>
             <Text style={[
@@ -438,27 +372,6 @@ export default function ChatScreen({ navigation }) {
             ]}>
               {formatMessageTime(item.timestamp)}
             </Text>
-            
-            {isAI && (
-              <TouchableOpacity
-                style={[
-                  styles.speakerButton,
-                  isPlaying && { backgroundColor: theme.colors.primaryContainer }
-                ]}
-                onPress={() => speakMessage(item.content)}
-                disabled={audioLoading}
-              >
-                {audioLoading ? (
-                  <ActivityIndicator size={14} color={theme.colors.primary} />
-                ) : (
-                  <Icon 
-                    name={isPlaying ? "pause" : "play-arrow"} 
-                    size={16} 
-                    color={theme.colors.primary} 
-                  />
-                )}
-              </TouchableOpacity>
-            )}
           </View>
         </View>
         
@@ -598,82 +511,141 @@ export default function ChatScreen({ navigation }) {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
       <KeyboardAvoidingView 
         style={styles.container} 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         {/* Header */}
-        <View style={[styles.header, { backgroundColor: theme.colors.surface }]}>
-          <TouchableOpacity onPress={() => setShowSidebar(true)}>
-            <Icon name="menu" size={24} color={theme.colors.onSurface} />
-          </TouchableOpacity>
-          
-          <Text variant="titleLarge" style={{ color: theme.colors.onSurface }}>
-            {content.title}
-          </Text>
-          
-          <Menu
-            visible={menuVisible}
-            onDismiss={() => setMenuVisible(false)}
-            anchor={
-              <IconButton
-                icon="dots-vertical"
-                onPress={() => setMenuVisible(true)}
-                iconColor={theme.colors.onSurface}
-              />
-            }
-          >
-            <Menu.Item onPress={createNewConversation} title={content.newChat} />
-            <Divider />
-            <Menu.Item onPress={clearAllConversations} title={content.clearAll} />
-          </Menu>
-      </View>
+        <LinearGradient
+          colors={[theme.colors.primary + '15', theme.colors.surface]}
+          style={styles.headerGradient}
+        >
+          <View style={styles.header}>
+            <TouchableOpacity onPress={() => setShowSidebar(true)} style={styles.headerButton}>
+              <Icon name="menu" size={24} color={theme.colors.onSurface} />
+            </TouchableOpacity>
+            
+            <View style={styles.headerCenter}>
+              <Icon name="smart-toy" size={24} color={theme.colors.primary} />
+              <Text variant="titleLarge" style={[styles.headerTitle, { color: theme.colors.onSurface }]}>
+                {content.title}
+              </Text>
+            </View>
+            
+            <Menu
+              visible={menuVisible}
+              onDismiss={() => setMenuVisible(false)}
+              anchor={
+                <IconButton
+                  icon="dots-vertical"
+                  onPress={() => setMenuVisible(true)}
+                  iconColor={theme.colors.onSurface}
+                  style={styles.headerButton}
+                />
+              }
+            >
+              <Menu.Item onPress={createNewConversation} title={content.newChat} />
+              <Divider />
+              <Menu.Item onPress={clearAllConversations} title={content.clearAll} />
+            </Menu>
+          </View>
+        </LinearGradient>
 
         {/* Messages */}
         <View style={styles.messagesContainer}>
           {messages.length === 0 ? (
             renderWelcomeScreen()
           ) : (
-      <FlatList
-        ref={flatListRef}
-        data={messages}
-        renderItem={renderMessage}
-        keyExtractor={(item) => item.id}
-        style={styles.messagesList}
+            <FlatList
+              ref={flatListRef}
+              data={messages}
+              renderItem={renderMessage}
+              keyExtractor={(item) => item.id}
+              style={styles.messagesList}
               contentContainerStyle={styles.messagesContent}
               showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              onContentSizeChange={() => {
+                setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100)
+              }}
+              onLayout={() => {
+                setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100)
+              }}
+              maintainVisibleContentPosition={{
+                minIndexForVisible: 0,
+                autoscrollToTopThreshold: 10,
+              }}
             />
           )}
         </View>
 
         {/* Input */}
-        <View style={[styles.inputContainer, { backgroundColor: theme.colors.surface }]}>
-        <TextInput
-            style={styles.textInput}
-          value={inputText}
-          onChangeText={setInputText}
-            placeholder={content.placeholder}
-          multiline
-            maxLength={1000}
-            editable={!loading && !isPlaying}
-          />
-          
-          {/* Send Button */}
-          <IconButton
-            icon={loading ? "timer-sand-empty" : "send"}
-            onPress={sendMessage}
-            disabled={!inputText.trim() || loading || isPlaying}
-            iconColor={theme.colors.primary}
-          />
-          
-          {(loading || audioLoading) && (
-            <ActivityIndicator 
-              size="small" 
-              color={theme.colors.primary} 
-              style={styles.loadingIndicator}
-            />
-          )}
+        <View style={[styles.inputGradient, { backgroundColor: theme.colors.surface }]}>
+          <View style={styles.inputContainer}>
+            <View style={[
+              styles.inputSurface, 
+              { 
+                backgroundColor: theme.colors.background,
+                shadowColor: theme.colors.shadow,
+                shadowOffset: { width: 0, height: -2 },
+                shadowOpacity: 0.1,
+                shadowRadius: 8,
+                elevation: 8
+              }
+            ]}>
+              <View style={styles.inputWrapper}>
+                <TextInput
+                  style={[styles.textInput, { color: theme.colors.onSurface }]}
+                  value={inputText}
+                  onChangeText={setInputText}
+                  placeholder={content.placeholder}
+                  placeholderTextColor={theme.colors.outline}
+                  multiline
+                  maxLength={1000}
+                  editable={!loading}
+                  mode="outlined"
+                  outlineStyle={{ borderWidth: 0 }}
+                  contentStyle={styles.textInputContent}
+                  onFocus={() => {
+                    // Scroll to bottom when input is focused
+                    setTimeout(() => {
+                      flatListRef.current?.scrollToEnd({ animated: true })
+                    }, 300)
+                  }}
+                />
+                
+                {/* Send Button */}
+                <TouchableOpacity
+                  style={[
+                    styles.sendButton,
+                    { 
+                      backgroundColor: inputText.trim() ? theme.colors.primary : theme.colors.outline,
+                      opacity: (!inputText.trim() || loading) ? 0.5 : 1
+                    }
+                  ]}
+                  onPress={sendMessage}
+                  disabled={!inputText.trim() || loading}
+                  activeOpacity={0.8}
+                >
+                  {loading ? (
+                    <ActivityIndicator size={20} color="white" />
+                  ) : (
+                    <Icon name="send" size={20} color="white" />
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+            
+            {loading && (
+              <ActivityIndicator 
+                size="small" 
+                color={theme.colors.primary} 
+                style={styles.loadingIndicator}
+              />
+            )}
+          </View>
         </View>
 
         {/* Sidebar Overlay */}
@@ -696,16 +668,32 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  headerGradient: {
+    elevation: 4,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    elevation: 2,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+  },
+  headerButton: {
+    padding: 8,
+    borderRadius: 20,
+  },
+  headerCenter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    fontWeight: '600',
   },
   messagesContainer: {
     flex: 1,
@@ -714,12 +702,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   messagesContent: {
-    paddingVertical: 16,
+    paddingVertical: 20,
+    paddingBottom: 24,
   },
   messageContainer: {
     flexDirection: 'row',
-    marginVertical: 4,
-    paddingHorizontal: 16,
+    marginVertical: 6,
+    paddingHorizontal: 20,
   },
   userMessageContainer: {
     justifyContent: 'flex-end',
@@ -728,16 +717,20 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
   },
   messageBubble: {
-    maxWidth: '80%',
-    padding: 12,
-    borderRadius: 16,
+    maxWidth: '85%',
+    padding: 16,
+    borderRadius: 20,
     marginHorizontal: 8,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
   },
   userBubble: {
-    borderBottomRightRadius: 4,
+    borderBottomRightRadius: 6,
   },
   aiBubble: {
-    borderBottomLeftRadius: 4,
+    borderBottomLeftRadius: 6,
   },
   messageText: {
     fontSize: 16,
@@ -745,56 +738,77 @@ const styles = StyleSheet.create({
   },
   messageTime: {
     fontSize: 12,
-    marginTop: 4,
-    alignSelf: 'flex-end',
   },
   aiAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(0,0,0,0.1)',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(0,0,0,0.08)',
     justifyContent: 'center',
     alignItems: 'center',
     alignSelf: 'flex-end',
+    marginBottom: 4,
+    elevation: 1,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
   userAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(0,0,0,0.3)',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(0,0,0,0.15)',
     justifyContent: 'center',
     alignItems: 'center',
     alignSelf: 'flex-end',
+    marginBottom: 4,
+    elevation: 1,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
-  referencesContainer: {
-    marginTop: 8,
+
+  inputGradient: {
     paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(0,0,0,0.1)',
-  },
-  referencesTitle: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  referenceChip: {
-    marginRight: 4,
-    marginBottom: 4,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 8,
   },
   inputContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
+  inputSurface: {
+    borderRadius: 28,
+    paddingHorizontal: 4,
+    paddingVertical: 4,
+    minHeight: 56,
+  },
+  inputWrapper: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     paddingHorizontal: 16,
-    paddingVertical: 8,
-    elevation: 8,
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    paddingVertical: 4,
   },
   textInput: {
     flex: 1,
     maxHeight: 100,
-    marginRight: 8,
+    marginRight: 12,
+    fontSize: 16,
+  },
+  textInputContent: {
+    paddingHorizontal: 0,
+    paddingVertical: 8,
+  },
+  sendButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 3,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    marginLeft: 8,
   },
   loadingIndicator: {
     position: 'absolute',
@@ -902,11 +916,7 @@ const styles = StyleSheet.create({
   },
   messageFooter: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
     alignItems: 'center',
-  },
-  speakerButton: {
-    padding: 4,
-    borderRadius: 12,
   },
 })

@@ -1,6 +1,5 @@
 import OpenAI from 'openai';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import legalDataService from './legalDataService';
 
 class AIChatService {
   constructor() {
@@ -77,35 +76,6 @@ class AIChatService {
     }
   }
 
-  // Get relevant legal context for a query
-  async getLegalContext(query, language = 'en') {
-    try {
-      // Search for relevant articles with broader search
-      let searchResults = await this.searchForRelevantArticles(query, language);
-      
-      if (searchResults.length === 0) {
-        return null;
-      }
-
-      // Get top 5 most relevant articles (increased from 3)
-      const topResults = searchResults.slice(0, 5);
-      
-      const context = topResults.map(article => ({
-        id: article.id,
-        title: article.title,
-        text: article.text.substring(0, 800) + (article.text.length > 800 ? '...' : ''), // Increased context length
-        documentType: article.documentType,
-        score: article.score,
-        fullArticle: article // Include full article for navigation
-      }));
-
-      return context;
-    } catch (error) {
-      console.error('Error getting legal context:', error);
-      return null;
-    }
-  }
-
   // Detect language of the message
   detectLanguage(message) {
     // Simple language detection based on common French words
@@ -124,22 +94,19 @@ class AIChatService {
     return frenchScore > englishScore ? 'fr' : 'en';
   }
 
-  // Generate AI response
-  async generateResponse(message, userLanguage = 'en') {
+  // Generate AI response with online research
+  async generateResponse(message, userLanguage = 'en', userId = null) {
     try {
       // Detect message language
       const messageLanguage = this.detectLanguage(message);
       const responseLanguage = messageLanguage;
 
-      // Get legal context
-      const legalContext = await this.getLegalContext(message, responseLanguage);
-
-      // Build system prompt
-      const systemPrompt = this.buildSystemPrompt(responseLanguage, legalContext);
+      // Build system prompt for online research
+      const systemPrompt = this.buildSystemPrompt(responseLanguage);
 
       // Get conversation history for context
       const conversation = this.getCurrentConversation();
-      const conversationHistory = conversation ? conversation.messages.slice(-6) : []; // Last 6 messages for context
+      const conversationHistory = conversation ? conversation.messages.slice(-6) : [];
 
       // Build messages array
       const messages = [
@@ -155,19 +122,23 @@ class AIChatService {
       const completion = await this.openai.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: messages,
-        max_tokens: 1000,
+        max_tokens: 1500,
         temperature: 0.7,
       });
 
-      const aiResponse = completion.choices[0].message.content;
+      let aiResponse = completion.choices[0].message.content;
+
+      // Add disclaimer at the end of every response
+      const disclaimer = this.getDisclaimer(responseLanguage);
+      aiResponse += '\n\n' + disclaimer;
 
       // Add messages to current conversation
       await this.addMessageToConversation(message, 'user');
-      await this.addMessageToConversation(aiResponse, 'assistant', legalContext);
+      await this.addMessageToConversation(aiResponse, 'assistant');
 
       return {
         response: aiResponse,
-        legalReferences: legalContext,
+        legalReferences: null, // No more references
         language: responseLanguage
       };
 
@@ -187,44 +158,47 @@ class AIChatService {
     }
   }
 
-  // Build system prompt based on language and context
-  buildSystemPrompt(language, legalContext) {
-    const contextText = legalContext 
-      ? legalContext.map(article => `${article.id}: ${article.title}\n${article.text}`).join('\n\n')
-      : '';
-
+  // System prompt for online research
+  buildSystemPrompt(language) {
     if (language === 'fr') {
-      return `Vous êtes un assistant juridique expert spécialisé dans le droit camerounais. Vous aidez les utilisateurs à comprendre le Code Pénal et le Code de Procédure Pénale du Cameroun.
+      return `Vous êtes un assistant juridique expert spécialisé dans le droit camerounais. Vous aidez les utilisateurs à comprendre les lois du Cameroun.
 
 INSTRUCTIONS IMPORTANTES:
 1. Répondez TOUJOURS en français puisque l'utilisateur écrit en français
-2. Basez vos réponses EXCLUSIVEMENT sur les articles de loi fournis ci-dessous
-3. Citez OBLIGATOIREMENT les articles spécifiques dans votre réponse (ex: "Selon l'Article 25 du Code Pénal...")
-4. Analysez TOUS les articles fournis et utilisez ceux qui sont pertinents
-5. Si plusieurs articles sont pertinents, mentionnez-les tous
-6. Structurez votre réponse de manière claire avec des paragraphes
-7. Terminez toujours par "Consultez les articles référencés ci-dessous pour plus de détails."
-8. N'inventez JAMAIS de contenu juridique qui n'est pas dans les articles fournis
+2. Gardez vos réponses BRÈVES et CONCISES (maximum 3-4 paragraphes)
+3. Concentrez-vous sur le Code Pénal du Cameroun et le Code de Procédure Pénale du Cameroun
+4. Si vous connaissez un article spécifique pertinent, mentionnez-le (ex: "Selon l'article 93 du Code de Procédure Pénale...")
+5. NE créez PAS de liens cliquables vers les articles
+6. Si aucun article spécifique n'est connu, répondez basé sur les principes juridiques généraux
+7. Analysez la question juridique et donnez des conseils généraux appropriés
+8. Soyez précis et informatif mais concis
+9. Mentionnez les domaines pertinents du droit camerounais
 
-${contextText ? `ARTICLES PERTINENTS:\n${contextText}` : 'Aucun article spécifique trouvé pour cette question. Je ne peux pas fournir de conseil juridique spécifique sans articles pertinents.'}
-
-Répondez de manière claire, professionnelle et complète en vous basant uniquement sur les articles fournis.`;
+Répondez de manière claire, professionnelle et BRÈVE en vous basant sur vos connaissances du système juridique camerounais.`;
     } else {
-      return `You are an expert legal assistant specializing in Cameroonian law. You help users understand the Penal Code and Criminal Procedure Code of Cameroon.
+      return `You are an expert legal assistant specializing in Cameroonian law. You help users understand Cameroon's laws.
 
 IMPORTANT INSTRUCTIONS:
 1. ALWAYS respond in English since the user is writing in English
-2. Base your answers EXCLUSIVELY on the law articles provided below
-3. ALWAYS cite specific articles in your response (e.g., "According to Article 25 of the Penal Code...")
-4. Analyze ALL provided articles and use those that are relevant
-5. If multiple articles are relevant, mention them all
-6. Structure your response clearly with paragraphs
-7. Always end with "Please refer to the referenced articles below for more details."
-8. NEVER invent legal content that is not in the provided articles
+2. Keep your responses BRIEF and CONCISE (maximum 3-4 paragraphs)
+3. Focus on Cameroon's Penal Code and Criminal Procedure Code
+4. If you know a specific relevant article, mention it (e.g., "According to Article 93 of the Criminal Procedure Code...")
+5. DO NOT create clickable links to articles
+6. If no specific article is known, respond based on general legal principles
+7. Analyze the legal question and give appropriate general guidance
+8. Be precise and informative but concise
+9. Mention relevant areas of Cameroonian law
 
-${contextText ? `RELEVANT ARTICLES:\n${contextText}` : 'No specific articles found for this question. I cannot provide specific legal advice without relevant articles.'}
+Respond clearly, professionally, and BRIEFLY based on your knowledge of the Cameroonian legal system.`;
+    }
+  }
 
-Respond clearly, professionally, and comprehensively based only on the articles provided.`;
+  // Get disclaimer text
+  getDisclaimer(language) {
+    if (language === 'fr') {
+      return `⚠️ AVERTISSEMENT IMPORTANT: Cette information est fournie à titre informatif uniquement et ne constitue pas un conseil juridique professionnel. Pour des conseils juridiques spécifiques à votre situation, veuillez consulter un avocat qualifié. Vous pouvez également consulter nos documents juridiques officiels sur la page d'accueil de l'application pour des références précises aux lois camerounaises.`;
+    } else {
+      return `⚠️ IMPORTANT DISCLAIMER: This information is provided for informational purposes only and does not constitute professional legal advice. For legal advice specific to your situation, please consult a qualified lawyer. You can also refer to our official legal documents on the app's home page for precise references to Cameroonian laws.`;
     }
   }
 
@@ -242,7 +216,7 @@ Respond clearly, professionally, and comprehensively based only on the articles 
       content,
       role,
       timestamp: new Date().toISOString(),
-      legalReferences
+      legalReferences: null // Always null now
     };
 
     conversation.messages.push(message);
@@ -291,32 +265,6 @@ Respond clearly, professionally, and comprehensively based only on the articles 
     } catch (error) {
       console.error('Error clearing conversations:', error);
       return false;
-    }
-  }
-
-  async searchForRelevantArticles(query, language = 'en') {
-    try {
-      // First, search in the user's preferred language
-      let searchResults = await legalDataService.searchDocuments(query, language);
-      
-      // If not enough results, try the other language
-      if (searchResults.length < 3) {
-        const otherLanguage = language === 'en' ? 'fr' : 'en';
-        const additionalResults = await legalDataService.searchDocuments(query, otherLanguage);
-        searchResults = [...searchResults, ...additionalResults];
-      }
-
-      // Also search for individual keywords
-      const keywords = query.split(' ').filter(word => word.length > 3);
-      for (const word of keywords.slice(0, 3)) { // Limit to 3 keywords
-        const wordResults = await legalDataService.searchDocuments(word, language);
-        searchResults = [...searchResults, ...wordResults.slice(0, 2)];
-      }
-
-      return searchResults;
-    } catch (error) {
-      console.error('Error searching for relevant articles:', error);
-      return [];
     }
   }
 }

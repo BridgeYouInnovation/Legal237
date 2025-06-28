@@ -87,6 +87,11 @@ class DirectPaymentService {
         name: 'Complete Legal Package',
         price: 5000,
         currency: 'XAF'
+      },
+      'lawyers_subscription': {
+        name: 'Lawyers Directory Access',
+        price: 500,
+        currency: 'XAF'
       }
     };
     return documents[documentType] || documents['penal_code'];
@@ -365,10 +370,10 @@ class DirectPaymentService {
         return { success: false, error: 'Transaction or My-CoolPay reference not found' };
       }
 
-      // Check if transaction has been pending too long (15 minutes timeout)
+      // Check if transaction has been pending too long (5 minutes timeout to match UI polling)
       const createdAt = new Date(transaction.created_at);
       const now = new Date();
-      const timeoutMinutes = 15;
+      const timeoutMinutes = 5;
       const timeDiff = (now - createdAt) / (1000 * 60); // difference in minutes
 
       if (timeDiff > timeoutMinutes && (transaction.status === 'pending' || transaction.status === 'awaiting_otp')) {
@@ -382,10 +387,7 @@ class DirectPaymentService {
         });
 
         // Update database status
-        await this.updateTransactionStatusInDatabase(transactionId, 'failed', {
-          failed_at: new Date().toISOString(),
-          failure_reason: 'Transaction timeout - user did not complete payment within 15 minutes'
-        });
+        await this.updateTransactionStatusInDatabase(transactionId, 'failed');
 
         return {
           success: true,
@@ -437,30 +439,28 @@ class DirectPaymentService {
           // Mark document as purchased when payment is successful
           await this.markDocumentAsPurchased(transaction.documentType);
           
+          // If this is a lawyers subscription, activate it
+          if (transaction.documentType === 'lawyers_subscription') {
+            const subscriptionService = require('./subscriptionService').default;
+            await subscriptionService.activateLawyersSubscription();
+          }
+          
           // Update database status to completed
-          await this.updateTransactionStatusInDatabase(transactionId, 'completed', {
-            paid_at: new Date().toISOString(),
-            completed_at: new Date().toISOString()
-          });
+          await this.updateTransactionStatusInDatabase(transactionId, 'completed');
           
         } else if (transactionStatus === 'FAILED' || transactionStatus === 'CANCELED') {
           appStatus = 'failed';
           console.log('❌ Payment failed or cancelled');
           
           // Update database status to failed
-          await this.updateTransactionStatusInDatabase(transactionId, 'failed', {
-            failed_at: new Date().toISOString(),
-            failure_reason: transactionStatus === 'CANCELED' ? 'User cancelled payment' : 'Payment failed'
-          });
+          await this.updateTransactionStatusInDatabase(transactionId, 'failed');
           
         } else if (transactionStatus === 'PENDING') {
           appStatus = 'pending';
           console.log('⏳ Payment still pending - user needs to enter PIN code');
           
           // Update database status to pending (in case it was different before)
-          await this.updateTransactionStatusInDatabase(transactionId, 'pending', {
-            last_check_at: new Date().toISOString()
-          });
+          await this.updateTransactionStatusInDatabase(transactionId, 'pending');
         }
 
         return {
@@ -833,44 +833,43 @@ class DirectPaymentService {
     }
   }
 
-  async saveTransactionToDatabase({ transactionId, documentType, customerInfo, paymentData, mycoolpayRef, status, action, ussd }) {
-    try {
-      // Import supabase here to avoid circular dependencies
-      const { supabase } = require('../lib/supabase');
-      
-      // Get current user
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) {
-        console.log('No authenticated user, skipping database save');
-        return;
-      }
+     async saveTransactionToDatabase({ transactionId, documentType, customerInfo, paymentData, mycoolpayRef, status, action, ussd }) {
+     try {
+       // Import supabase here to avoid circular dependencies
+       const { supabase } = require('../lib/supabase');
+       
+       // Get current user
+       const { data: { user }, error: userError } = await supabase.auth.getUser();
+       if (userError || !user) {
+         console.log('No authenticated user, skipping database save');
+         return;
+       }
 
-      // Create new payment record
-      const paymentRecord = {
-        user_id: user.id,
-        document_type: documentType,
-        amount: paymentData.transaction_amount,
-        currency: paymentData.transaction_currency,
-        status: status,
-        payment_method: 'mobile_money',
-        transaction_id: transactionId,
-        mycoolpay_ref: mycoolpayRef,
-        action: action,
-        ussd: ussd,
-        created_at: new Date().toISOString()
-      };
+       // Create new payment record using existing schema
+       const paymentRecord = {
+         user_id: user.id,
+         document_type: documentType,
+         amount: paymentData.transaction_amount,
+         currency: paymentData.transaction_currency,
+         status: status,
+         payment_method: 'mobile_money',
+         transaction_id: transactionId,
+         flutterwave_tx_ref: mycoolpayRef // Use existing field for My-CoolPay ref
+       };
 
-      const { error } = await supabase
-        .from('payment_records')
-        .insert([paymentRecord]);
+       console.log('💾 Saving payment record to database:', paymentRecord);
 
-      if (error) {
-        console.error('Error saving payment to database:', error);
-      } else {
-        console.log('Payment record saved to database successfully');
-      }
-         } catch (error) {
-       console.error('Error accessing database for payment save:', error);
+       const { error } = await supabase
+         .from('payment_records')
+         .insert([paymentRecord]);
+
+       if (error) {
+         console.error('❌ Error saving payment to database:', error);
+       } else {
+         console.log('✅ Payment record saved to database successfully');
+       }
+     } catch (error) {
+       console.error('❌ Error accessing database for payment save:', error);
      }
    }
 
@@ -879,10 +878,9 @@ class DirectPaymentService {
      try {
        const { supabase } = require('../lib/supabase');
        
+       // Only use fields that exist in the payment_records table
        const updateData = {
-         status: status,
-         updated_at: new Date().toISOString(),
-         ...additionalData
+         status: status
        };
 
        console.log(`📊 Updating database: ${transactionId} -> ${status}`);
@@ -935,9 +933,7 @@ class DirectPaymentService {
        let query = supabase
          .from('payment_records')
          .update({ 
-           status: 'cancelled',
-           cancelled_at: new Date().toISOString(),
-           cancellation_reason: 'New payment initiated for same document'
+           status: 'cancelled'
          })
          .eq('user_id', userId)
          .eq('document_type', documentType)
@@ -950,12 +946,12 @@ class DirectPaymentService {
        const { error } = await query;
 
        if (error) {
-         console.error('Error cancelling pending transactions:', error);
+         console.error('❌ Error cancelling pending transactions:', error);
        } else {
          console.log(`✅ Cancelled pending transactions for user ${userId} and document ${documentType}`);
        }
      } catch (error) {
-       console.error('Error accessing database for cancellation:', error);
+       console.error('❌ Error accessing database for cancellation:', error);
      }
    }
 }

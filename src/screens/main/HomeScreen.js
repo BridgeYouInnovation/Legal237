@@ -115,35 +115,7 @@ export default function HomeScreen({ navigation }) {
     }, [])
   )
 
-  // Debug function to show payment history
-  const showPaymentHistory = async () => {
-    try {
-      const directPaymentService = require('../../services/directPaymentService').default;
-      const history = await directPaymentService.getPaymentHistory();
-      
-      if (history) {
-        const message = `
-Payment History Summary:
-• Local Transactions: ${history.summary.totalLocalTransactions}
-• Purchased Documents: ${history.summary.totalPurchasedLocally}
-• Database Payments: ${history.summary.totalDatabasePayments}
-• Current Purchases: ${history.summary.purchasedDocuments.join(', ') || 'None'}
 
-Check console for detailed logs.`;
-
-        Alert.alert('Payment History', message, [
-          { text: 'Clear All Data', onPress: async () => {
-            const result = await directPaymentService.clearAllPaymentData();
-            Alert.alert('Clear Data', result.success ? 'All payment data cleared' : 'Failed to clear data');
-          }, style: 'destructive' },
-          { text: 'OK' }
-        ]);
-      }
-    } catch (error) {
-      Alert.alert('Error', 'Failed to get payment history');
-      console.error('Payment history error:', error);
-    }
-  }
 
   const handleSearch = () => {
     if (searchQuery.trim()) {
@@ -358,15 +330,7 @@ Check console for detailed logs.`;
           </TouchableOpacity>
         </Surface>
 
-        {/* Debug Payment History Button (Development Only) */}
-        {__DEV__ && (
-          <TouchableOpacity 
-            onPress={showPaymentHistory}
-            style={styles.debugButton}
-          >
-            <Text style={styles.debugText}>🔍 View Payment History (Debug)</Text>
-          </TouchableOpacity>
-        )}
+
 
         {/* Quick Access Section */}
         <View style={styles.section}>
@@ -619,17 +583,5 @@ const styles = StyleSheet.create({
   },
   bottomSpacing: {
     height: 20,
-  },
-  debugButton: {
-    backgroundColor: '#ff9800',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 16,
-    alignItems: 'center',
-  },
-  debugText: {
-    color: 'white',
-    fontWeight: 'bold',
-    fontSize: 14,
   },
 })

@@ -12,27 +12,26 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   IconButton,
   Chip,
   Alert,
-  LinearProgress,
+  Card,
+  CardContent,
+  FormControlLabel,
+  Checkbox,
+  Tabs,
+  Tab,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
 } from '@mui/material';
 import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
-  Upload as UploadIcon,
-  Download as DownloadIcon,
+  ExpandMore as ExpandMoreIcon,
 } from '@mui/icons-material';
 import { supabaseAdmin } from '../lib/supabase';
-import './Laws.css';
 
 interface LawCategory {
   id: string;
@@ -98,10 +97,13 @@ const Laws: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [tabValue, setTabValue] = useState(0);
   
   // Modal states
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showArticleModal, setShowArticleModal] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ type: 'category' | 'article'; id: string; name: string } | null>(null);
   const [editingCategory, setEditingCategory] = useState<LawCategory | null>(null);
   const [editingArticle, setEditingArticle] = useState<LawArticle | null>(null);
   
@@ -126,13 +128,6 @@ const Laws: React.FC = () => {
     content_en: '',
     content_fr: ''
   });
-
-  // Available icons for categories
-  const availableIcons = [
-    'gavel', 'scale-balanced', 'users', 'briefcase', 'hard-hat', 'home',
-    'document-text', 'book-open', 'shield-check', 'building-office',
-    'banknotes', 'academic-cap', 'heart', 'truck', 'globe-alt'
-  ];
 
   useEffect(() => {
     loadCategories();
@@ -194,17 +189,7 @@ const Laws: React.FC = () => {
       if (error) throw error;
       
       setShowCategoryModal(false);
-      setNewCategory({
-        code: '',
-        name_en: '',
-        name_fr: '',
-        description_en: '',
-        description_fr: '',
-        icon: 'document-text',
-        color: '#3B82F6',
-        price: 1000,
-        is_free: false
-      });
+      resetCategoryForm();
       loadCategories();
     } catch (err) {
       setError('Failed to create category');
@@ -232,33 +217,57 @@ const Laws: React.FC = () => {
     }
   };
 
-  const handleDeleteCategory = async (categoryId: string) => {
-    if (!confirm('Are you sure you want to delete this law category? This will also delete all articles in this category.')) {
-      return;
-    }
+  const handleDeleteCategory = (categoryId: string, categoryName: string) => {
+    setDeleteTarget({ type: 'category', id: categoryId, name: categoryName });
+    setShowDeleteDialog(true);
+  };
+
+  const handleDeleteArticle = (articleId: string, articleName: string) => {
+    setDeleteTarget({ type: 'article', id: articleId, name: articleName });
+    setShowDeleteDialog(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
     
     try {
-      const { error } = await supabaseAdmin
-        .from('law_categories')
-        .delete()
-        .eq('id', categoryId);
+      if (deleteTarget.type === 'category') {
+        const { error } = await supabaseAdmin
+          .from('law_categories')
+          .delete()
+          .eq('id', deleteTarget.id);
 
-      if (error) throw error;
-      
-      loadCategories();
-      if (selectedCategory === categoryId) {
-        setSelectedCategory(null);
-        setArticles([]);
+        if (error) throw error;
+        
+        loadCategories();
+        if (selectedCategory === deleteTarget.id) {
+          setSelectedCategory(null);
+          setArticles([]);
+        }
+      } else {
+        const { error } = await supabaseAdmin
+          .from('law_articles')
+          .delete()
+          .eq('id', deleteTarget.id);
+
+        if (error) throw error;
+        
+        if (selectedCategory) {
+          loadArticles(selectedCategory);
+        }
+        loadCategories();
       }
+      
+      setShowDeleteDialog(false);
+      setDeleteTarget(null);
     } catch (err) {
-      setError('Failed to delete category');
+      setError(`Failed to delete ${deleteTarget.type}`);
       console.error(err);
     }
   };
 
   const handleCreateArticle = async () => {
     try {
-      // Get the next article number
       const maxNumber = Math.max(...articles.map(a => a.article_number), 0);
       
       const { error } = await supabaseAdmin
@@ -272,18 +281,11 @@ const Laws: React.FC = () => {
       if (error) throw error;
       
       setShowArticleModal(false);
-      setNewArticle({
-        category_id: '',
-        article_id: '',
-        title_en: '',
-        title_fr: '',
-        content_en: '',
-        content_fr: ''
-      });
+      resetArticleForm();
       if (selectedCategory) {
         loadArticles(selectedCategory);
       }
-      loadCategories(); // Refresh stats
+      loadCategories();
     } catch (err) {
       setError('Failed to create article');
       console.error(err);
@@ -318,27 +320,29 @@ const Laws: React.FC = () => {
     }
   };
 
-  const handleDeleteArticle = async (articleId: string) => {
-    if (!confirm('Are you sure you want to delete this article?')) {
-      return;
-    }
-    
-    try {
-      const { error } = await supabaseAdmin
-        .from('law_articles')
-        .delete()
-        .eq('id', articleId);
+  const resetCategoryForm = () => {
+    setNewCategory({
+      code: '',
+      name_en: '',
+      name_fr: '',
+      description_en: '',
+      description_fr: '',
+      icon: 'document-text',
+      color: '#3B82F6',
+      price: 1000,
+      is_free: false
+    });
+  };
 
-      if (error) throw error;
-      
-      if (selectedCategory) {
-        loadArticles(selectedCategory);
-      }
-      loadCategories(); // Refresh stats
-    } catch (err) {
-      setError('Failed to delete article');
-      console.error(err);
-    }
+  const resetArticleForm = () => {
+    setNewArticle({
+      category_id: '',
+      article_id: '',
+      title_en: '',
+      title_fr: '',
+      content_en: '',
+      content_fr: ''
+    });
   };
 
   const openCategoryModal = (category?: LawCategory) => {
@@ -357,17 +361,7 @@ const Laws: React.FC = () => {
       });
     } else {
       setEditingCategory(null);
-      setNewCategory({
-        code: '',
-        name_en: '',
-        name_fr: '',
-        description_en: '',
-        description_fr: '',
-        icon: 'document-text',
-        color: '#3B82F6',
-        price: 1000,
-        is_free: false
-      });
+      resetCategoryForm();
     }
     setShowCategoryModal(true);
   };
@@ -398,345 +392,333 @@ const Laws: React.FC = () => {
   };
 
   if (loading && categories.length === 0) {
-    return <div className="laws-loading">Loading laws...</div>;
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
+        <Typography>Loading laws...</Typography>
+      </Box>
+    );
   }
 
   return (
-    <div className="laws-container">
-      <div className="laws-header">
-        <h1>Laws Management</h1>
-        <button 
-          className="btn-primary"
+    <Box>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h4" component="h1">
+          Laws Management
+        </Typography>
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
           onClick={() => openCategoryModal()}
         >
           Add New Law Category
-        </button>
-      </div>
+        </Button>
+      </Box>
 
       {error && (
-        <div className="error-message">
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
           {error}
-          <button onClick={() => setError(null)}>×</button>
-        </div>
+        </Alert>
       )}
 
-      <div className="laws-content">
-        {/* Categories Section */}
-        <div className="laws-categories">
-          <h2>Law Categories</h2>
-          <div className="categories-grid">
-            {categories.map((category) => (
-              <div 
-                key={category.id} 
-                className={`category-card ${selectedCategory === category.code ? 'selected' : ''}`}
-                onClick={() => setSelectedCategory(category.code)}
-              >
-                <div className="category-header">
-                  <div className="category-icon" style={{ color: category.color }}>
-                    <i className={`fas fa-${category.icon}`}></i>
-                  </div>
-                  <div className="category-actions">
-                    <button 
-                      className="btn-icon"
-                      onClick={(e) => { e.stopPropagation(); openCategoryModal(category); }}
-                    >
-                      <i className="fas fa-edit"></i>
-                    </button>
-                    <button 
-                      className="btn-icon btn-danger"
-                      onClick={(e) => { e.stopPropagation(); handleDeleteCategory(category.id); }}
-                    >
-                      <i className="fas fa-trash"></i>
-                    </button>
-                  </div>
-                </div>
-                <h3>{category.name_en}</h3>
-                <p className="category-description">{category.description_en}</p>
-                <div className="category-stats">
-                  <span className="stat">
-                    <i className="fas fa-file-text"></i> {category.active_articles || 0} articles
-                  </span>
-                  <span className="stat price">
-                    {category.is_free ? 'FREE' : `${category.price} ${category.currency}`}
-                  </span>
-                </div>
-                <div className="category-status">
-                  <span className={`status ${category.is_active ? 'active' : 'inactive'}`}>
-                    {category.is_active ? 'Active' : 'Inactive'}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+      <Tabs value={tabValue} onChange={(_, newValue) => setTabValue(newValue)} sx={{ mb: 3 }}>
+        <Tab label="Categories" />
+        <Tab label="Articles" disabled={!selectedCategory} />
+      </Tabs>
 
-        {/* Articles Section */}
-        {selectedCategory && (
-          <div className="laws-articles">
-            <div className="articles-header">
-              <h2>
-                Articles - {categories.find(c => c.code === selectedCategory)?.name_en}
-              </h2>
-              <button 
-                className="btn-secondary"
-                onClick={() => openArticleModal()}
-              >
-                Add New Article
-              </button>
-            </div>
+      {tabValue === 0 && (
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+          {categories.map((category) => (
+            <Card
+              key={category.id}
+              sx={{
+                width: 300,
+                cursor: 'pointer',
+                border: selectedCategory === category.code ? 2 : 1,
+                borderColor: selectedCategory === category.code ? 'primary.main' : 'divider',
+              }}
+              onClick={() => {
+                setSelectedCategory(category.code);
+                setTabValue(1);
+              }}
+            >
+              <CardContent>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+                  <Typography variant="h6" component="h2">
+                    {category.name_en}
+                  </Typography>
+                  <Box>
+                    <IconButton
+                      size="small"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openCategoryModal(category);
+                      }}
+                    >
+                      <EditIcon />
+                    </IconButton>
+                    <IconButton
+                      size="small"
+                      color="error"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteCategory(category.id, category.name_en);
+                      }}
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  </Box>
+                </Box>
+                
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  {category.description_en}
+                </Typography>
+                
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Chip
+                    label={`${category.active_articles || 0} articles`}
+                    size="small"
+                    color="primary"
+                  />
+                  <Chip
+                    label={category.is_free ? 'FREE' : `${category.price} ${category.currency}`}
+                    size="small"
+                    color={category.is_free ? 'success' : 'default'}
+                  />
+                </Box>
+              </CardContent>
+            </Card>
+          ))}
+        </Box>
+      )}
 
-            <div className="articles-list">
-              {articles.map((article) => (
-                <div key={article.id} className="article-card">
-                  <div className="article-header">
-                    <div className="article-info">
-                      <span className="article-number">Article {article.article_id}</span>
-                      <span className="article-version">v{article.version}</span>
-                    </div>
-                    <div className="article-actions">
-                      <button 
-                        className="btn-icon"
-                        onClick={() => openArticleModal(article)}
-                      >
-                        <i className="fas fa-edit"></i>
-                      </button>
-                      <button 
-                        className="btn-icon btn-danger"
-                        onClick={() => handleDeleteArticle(article.id)}
-                      >
-                        <i className="fas fa-trash"></i>
-                      </button>
-                    </div>
-                  </div>
-                  <div className="article-content">
-                    <div className="article-title">
-                      <strong>EN:</strong> {article.title_en || 'No title'}
-                    </div>
-                    <div className="article-title">
-                      <strong>FR:</strong> {article.title_fr || 'Pas de titre'}
-                    </div>
-                    <div className="article-text">
-                      <p>
-                        <strong>EN:</strong> {article.content_en.substring(0, 200)}
-                        {article.content_en.length > 200 && '...'}
-                      </p>
-                      <p>
-                        <strong>FR:</strong> {article.content_fr.substring(0, 200)}
-                        {article.content_fr.length > 200 && '...'}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="article-footer">
-                    <span className="article-date">
-                      Updated: {new Date(article.updated_at).toLocaleDateString()}
-                    </span>
-                    <span className={`article-status ${article.is_active ? 'active' : 'inactive'}`}>
-                      {article.is_active ? 'Active' : 'Inactive'}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
+      {tabValue === 1 && selectedCategory && (
+        <Box>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+            <Typography variant="h5">
+              Articles - {categories.find(c => c.code === selectedCategory)?.name_en}
+            </Typography>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => openArticleModal()}
+            >
+              Add New Article
+            </Button>
+          </Box>
+
+          {articles.map((article) => (
+            <Accordion key={article.id}>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', mr: 2 }}>
+                  <Typography variant="h6">
+                    Article {article.article_id}
+                  </Typography>
+                  <Box>
+                    <IconButton
+                      size="small"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openArticleModal(article);
+                      }}
+                    >
+                      <EditIcon />
+                    </IconButton>
+                    <IconButton
+                      size="small"
+                      color="error"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteArticle(article.id, `Article ${article.article_id}`);
+                      }}
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  </Box>
+                </Box>
+              </AccordionSummary>
+              <AccordionDetails>
+                {article.title_en && (
+                  <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 'bold' }}>
+                    {article.title_en}
+                  </Typography>
+                )}
+                <Typography variant="body2" paragraph>
+                  {article.content_en.substring(0, 300)}
+                  {article.content_en.length > 300 && '...'}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Last updated: {new Date(article.updated_at).toLocaleDateString()}
+                </Typography>
+              </AccordionDetails>
+            </Accordion>
+          ))}
+        </Box>
+      )}
 
       {/* Category Modal */}
-      {showCategoryModal && (
-        <div className="modal-overlay" onClick={() => setShowCategoryModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>{editingCategory ? 'Edit Law Category' : 'Add New Law Category'}</h2>
-              <button className="modal-close" onClick={() => setShowCategoryModal(false)}>×</button>
-            </div>
-            <div className="modal-body">
-              <div className="form-grid">
-                <div className="form-group">
-                  <label>Code *</label>
-                  <input
-                    type="text"
-                    value={newCategory.code}
-                    onChange={(e) => setNewCategory({...newCategory, code: e.target.value})}
-                    placeholder="e.g., civil_code"
-                    disabled={!!editingCategory}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Icon</label>
-                  <select
-                    value={newCategory.icon}
-                    onChange={(e) => setNewCategory({...newCategory, icon: e.target.value})}
-                  >
-                    {availableIcons.map(icon => (
-                      <option key={icon} value={icon}>{icon}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label>English Name *</label>
-                  <input
-                    type="text"
-                    value={newCategory.name_en}
-                    onChange={(e) => setNewCategory({...newCategory, name_en: e.target.value})}
-                    placeholder="Civil Code"
-                  />
-                </div>
-                <div className="form-group">
-                  <label>French Name *</label>
-                  <input
-                    type="text"
-                    value={newCategory.name_fr}
-                    onChange={(e) => setNewCategory({...newCategory, name_fr: e.target.value})}
-                    placeholder="Code Civil"
-                  />
-                </div>
-                <div className="form-group">
-                  <label>English Description</label>
-                  <textarea
-                    value={newCategory.description_en}
-                    onChange={(e) => setNewCategory({...newCategory, description_en: e.target.value})}
-                    placeholder="Description in English"
-                  />
-                </div>
-                <div className="form-group">
-                  <label>French Description</label>
-                  <textarea
-                    value={newCategory.description_fr}
-                    onChange={(e) => setNewCategory({...newCategory, description_fr: e.target.value})}
-                    placeholder="Description en français"
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Color</label>
-                  <input
-                    type="color"
-                    value={newCategory.color}
-                    onChange={(e) => setNewCategory({...newCategory, color: e.target.value})}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Price (XAF)</label>
-                  <input
-                    type="number"
-                    value={newCategory.price}
-                    onChange={(e) => setNewCategory({...newCategory, price: parseInt(e.target.value)})}
-                    disabled={newCategory.is_free}
-                  />
-                </div>
-                <div className="form-group checkbox-group">
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={newCategory.is_free}
-                      onChange={(e) => setNewCategory({...newCategory, is_free: e.target.checked})}
-                    />
-                    Free Access
-                  </label>
-                </div>
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button className="btn-secondary" onClick={() => setShowCategoryModal(false)}>
-                Cancel
-              </button>
-              <button 
-                className="btn-primary"
-                onClick={editingCategory ? handleUpdateCategory : handleCreateCategory}
-              >
-                {editingCategory ? 'Update' : 'Create'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Dialog open={showCategoryModal} onClose={() => setShowCategoryModal(false)} maxWidth="md" fullWidth>
+        <DialogTitle>
+          {editingCategory ? 'Edit Law Category' : 'Add New Law Category'}
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
+            <TextField
+              label="Code"
+              value={newCategory.code}
+              onChange={(e) => setNewCategory({...newCategory, code: e.target.value})}
+              fullWidth
+              disabled={!!editingCategory}
+              helperText="e.g., civil_code"
+            />
+            <TextField
+              label="English Name"
+              value={newCategory.name_en}
+              onChange={(e) => setNewCategory({...newCategory, name_en: e.target.value})}
+              fullWidth
+              required
+            />
+            <TextField
+              label="French Name"
+              value={newCategory.name_fr}
+              onChange={(e) => setNewCategory({...newCategory, name_fr: e.target.value})}
+              fullWidth
+              required
+            />
+            <TextField
+              label="English Description"
+              value={newCategory.description_en}
+              onChange={(e) => setNewCategory({...newCategory, description_en: e.target.value})}
+              fullWidth
+              multiline
+              rows={2}
+            />
+            <TextField
+              label="French Description"
+              value={newCategory.description_fr}
+              onChange={(e) => setNewCategory({...newCategory, description_fr: e.target.value})}
+              fullWidth
+              multiline
+              rows={2}
+            />
+            <TextField
+              label="Price (XAF)"
+              type="number"
+              value={newCategory.price}
+              onChange={(e) => setNewCategory({...newCategory, price: parseInt(e.target.value)})}
+              fullWidth
+              disabled={newCategory.is_free}
+            />
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={newCategory.is_free}
+                  onChange={(e) => setNewCategory({...newCategory, is_free: e.target.checked})}
+                />
+              }
+              label="Free Access"
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowCategoryModal(false)}>Cancel</Button>
+          <Button
+            onClick={editingCategory ? handleUpdateCategory : handleCreateCategory}
+            variant="contained"
+          >
+            {editingCategory ? 'Update' : 'Create'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Article Modal */}
-      {showArticleModal && (
-        <div className="modal-overlay" onClick={() => setShowArticleModal(false)}>
-          <div className="modal-content large" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>{editingArticle ? 'Edit Article' : 'Add New Article'}</h2>
-              <button className="modal-close" onClick={() => setShowArticleModal(false)}>×</button>
-            </div>
-            <div className="modal-body">
-              <div className="form-grid">
-                <div className="form-group">
-                  <label>Article ID *</label>
-                  <input
-                    type="text"
-                    value={newArticle.article_id}
-                    onChange={(e) => setNewArticle({...newArticle, article_id: e.target.value})}
-                    placeholder="e.g., 1, 1-1, 2"
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Category</label>
-                  <select
-                    value={newArticle.category_id}
-                    onChange={(e) => setNewArticle({...newArticle, category_id: e.target.value})}
-                    disabled={!!editingArticle}
-                  >
-                    <option value="">Select Category</option>
-                    {categories.map(category => (
-                      <option key={category.id} value={category.id}>
-                        {category.name_en}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="form-group full-width">
-                  <label>English Title</label>
-                  <input
-                    type="text"
-                    value={newArticle.title_en}
-                    onChange={(e) => setNewArticle({...newArticle, title_en: e.target.value})}
-                    placeholder="Article title in English"
-                  />
-                </div>
-                <div className="form-group full-width">
-                  <label>French Title</label>
-                  <input
-                    type="text"
-                    value={newArticle.title_fr}
-                    onChange={(e) => setNewArticle({...newArticle, title_fr: e.target.value})}
-                    placeholder="Titre de l'article en français"
-                  />
-                </div>
-                <div className="form-group full-width">
-                  <label>English Content *</label>
-                  <textarea
-                    rows={8}
-                    value={newArticle.content_en}
-                    onChange={(e) => setNewArticle({...newArticle, content_en: e.target.value})}
-                    placeholder="Article content in English"
-                  />
-                </div>
-                <div className="form-group full-width">
-                  <label>French Content *</label>
-                  <textarea
-                    rows={8}
-                    value={newArticle.content_fr}
-                    onChange={(e) => setNewArticle({...newArticle, content_fr: e.target.value})}
-                    placeholder="Contenu de l'article en français"
-                  />
-                </div>
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button className="btn-secondary" onClick={() => setShowArticleModal(false)}>
-                Cancel
-              </button>
-              <button 
-                className="btn-primary"
-                onClick={editingArticle ? handleUpdateArticle : handleCreateArticle}
+      <Dialog open={showArticleModal} onClose={() => setShowArticleModal(false)} maxWidth="lg" fullWidth>
+        <DialogTitle>
+          {editingArticle ? 'Edit Article' : 'Add New Article'}
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
+            <TextField
+              label="Article ID"
+              value={newArticle.article_id}
+              onChange={(e) => setNewArticle({...newArticle, article_id: e.target.value})}
+              fullWidth
+              required
+              helperText="e.g., 1, 1-1, 2"
+            />
+            <FormControl fullWidth disabled={!!editingArticle}>
+              <InputLabel>Category</InputLabel>
+              <Select
+                value={newArticle.category_id}
+                onChange={(e) => setNewArticle({...newArticle, category_id: e.target.value})}
+                label="Category"
               >
-                {editingArticle ? 'Update' : 'Create'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+                {categories.map(category => (
+                  <MenuItem key={category.id} value={category.id}>
+                    {category.name_en}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <TextField
+              label="English Title"
+              value={newArticle.title_en}
+              onChange={(e) => setNewArticle({...newArticle, title_en: e.target.value})}
+              fullWidth
+            />
+            <TextField
+              label="French Title"
+              value={newArticle.title_fr}
+              onChange={(e) => setNewArticle({...newArticle, title_fr: e.target.value})}
+              fullWidth
+            />
+            <TextField
+              label="English Content"
+              value={newArticle.content_en}
+              onChange={(e) => setNewArticle({...newArticle, content_en: e.target.value})}
+              fullWidth
+              multiline
+              rows={8}
+              required
+            />
+            <TextField
+              label="French Content"
+              value={newArticle.content_fr}
+              onChange={(e) => setNewArticle({...newArticle, content_fr: e.target.value})}
+              fullWidth
+              multiline
+              rows={8}
+              required
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowArticleModal(false)}>Cancel</Button>
+          <Button
+            onClick={editingArticle ? handleUpdateArticle : handleCreateArticle}
+            variant="contained"
+          >
+            {editingArticle ? 'Update' : 'Create'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteDialog} onClose={() => setShowDeleteDialog(false)}>
+        <DialogTitle>Confirm Delete</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete {deleteTarget?.name}?
+            {deleteTarget?.type === 'category' && ' This will also delete all articles in this category.'}
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowDeleteDialog(false)}>Cancel</Button>
+          <Button onClick={confirmDelete} color="error" variant="contained">
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
   );
 };
 

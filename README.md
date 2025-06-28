@@ -208,7 +208,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 For support and questions:
 - Email: support@legal237.com
-- Phone: +237 123 456 789
+- Phone: +237682310407
 
 ## Roadmap
 

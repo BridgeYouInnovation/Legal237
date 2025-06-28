@@ -142,59 +142,61 @@ export default function SubscriptionScreen({ navigation }) {
                 ]}
                 elevation={selectedPlan === plan.id ? 4 : 2}
               >
-                <LinearGradient
-                  colors={selectedPlan === plan.id 
-                    ? [theme.colors.primary + '10', 'transparent'] 
-                    : ['transparent', 'transparent']
-                  }
-                  style={styles.planGradient}
-                >
-                  <View style={styles.planHeader}>
-                    <View style={styles.planInfo}>
-                      <Text variant="titleLarge" style={[styles.planName, { color: theme.colors.onSurface }]}>
-                        {plan.name}
-                      </Text>
-                      {plan.savings && (
-                        <View style={[styles.savingsBadge, { backgroundColor: theme.colors.secondary }]}>
-                          <Text variant="bodySmall" style={styles.savingsText}>
-                            {plan.savings}
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                    <View style={styles.priceContainer}>
-                      <Text variant="headlineSmall" style={[styles.price, { color: theme.colors.primary }]}>
-                        {plan.price}
-                      </Text>
-                      <Text variant="bodyMedium" style={[styles.period, { color: theme.colors.onSurface }]}>
-                        {plan.period}
-                      </Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.featuresContainer}>
-                    {plan.features.map((feature, index) => (
-                      <View key={index} style={styles.featureItem}>
-                        <Icon name="check-circle" size={20} color={theme.colors.primary} />
-                        <Text variant="bodyMedium" style={[styles.featureText, { color: theme.colors.onSurface }]}>
-                          {feature}
+                <View style={styles.cardContentWrapper}>
+                  <LinearGradient
+                    colors={selectedPlan === plan.id 
+                      ? [theme.colors.primary + '10', 'transparent'] 
+                      : ['transparent', 'transparent']
+                    }
+                    style={styles.planGradient}
+                  >
+                    <View style={styles.planHeader}>
+                      <View style={styles.planInfo}>
+                        <Text variant="titleLarge" style={[styles.planName, { color: theme.colors.onSurface }]}>
+                          {plan.name}
+                        </Text>
+                        {plan.savings && (
+                          <View style={[styles.savingsBadge, { backgroundColor: theme.colors.secondary }]}>
+                            <Text variant="bodySmall" style={styles.savingsText}>
+                              {plan.savings}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                      <View style={styles.priceContainer}>
+                        <Text variant="headlineSmall" style={[styles.price, { color: theme.colors.primary }]}>
+                          {plan.price}
+                        </Text>
+                        <Text variant="bodyMedium" style={[styles.period, { color: theme.colors.onSurface }]}>
+                          {plan.period}
                         </Text>
                       </View>
-                    ))}
-                  </View>
+                    </View>
 
-                  <Button
-                    mode={selectedPlan === plan.id ? "contained" : "outlined"}
-                    onPress={() => setSelectedPlan(plan.id)}
-                    style={[
-                      styles.selectButton,
-                      selectedPlan === plan.id && { backgroundColor: theme.colors.primary }
-                    ]}
-                    labelStyle={styles.selectButtonText}
-                  >
-                    {selectedPlan === plan.id ? 'Selected' : 'Select Plan'}
-                  </Button>
-                </LinearGradient>
+                    <View style={styles.featuresContainer}>
+                      {plan.features.map((feature, index) => (
+                        <View key={index} style={styles.featureItem}>
+                          <Icon name="check-circle" size={20} color={theme.colors.primary} />
+                          <Text variant="bodyMedium" style={[styles.featureText, { color: theme.colors.onSurface }]}>
+                            {feature}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+
+                    <Button
+                      mode={selectedPlan === plan.id ? "contained" : "outlined"}
+                      onPress={() => setSelectedPlan(plan.id)}
+                      style={[
+                        styles.selectButton,
+                        selectedPlan === plan.id && { backgroundColor: theme.colors.primary }
+                      ]}
+                      labelStyle={styles.selectButtonText}
+                    >
+                      {selectedPlan === plan.id ? 'Selected' : 'Select Plan'}
+                    </Button>
+                  </LinearGradient>
+                </View>
               </Surface>
             ))}
           </View>
@@ -290,7 +292,10 @@ const styles = StyleSheet.create({
   },
   planCard: {
     borderRadius: 16,
+  },
+  cardContentWrapper: {
     overflow: 'hidden',
+    borderRadius: 16,
   },
   planGradient: {
     padding: 20,

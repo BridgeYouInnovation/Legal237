@@ -10,6 +10,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage"
 import legalDataService from "../../services/legalDataService"
 import FloatingChatButton from "../../components/FloatingChatButton"
 import { useTranslation } from "react-i18next"
+import subscriptionService from "../../services/subscriptionService"
 
 export default function FindLawyerScreen({ navigation }) {
   const [searchQuery, setSearchQuery] = useState("")
@@ -17,6 +18,8 @@ export default function FindLawyerScreen({ navigation }) {
   const [lawyers, setLawyers] = useState([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [hasSubscription, setHasSubscription] = useState(false)
+  const [checkingSubscription, setCheckingSubscription] = useState(true)
   const { t, i18n } = useTranslation()
   const theme = useTheme()
 
@@ -44,6 +47,49 @@ export default function FindLawyerScreen({ navigation }) {
     setSelectedSpecialty(null)
   }, [currentLanguage])
 
+  // Check if user has lawyers subscription
+  const checkSubscription = async (forceRefresh = false) => {
+    try {
+      setCheckingSubscription(true)
+      const hasAccess = await subscriptionService.hasLawyersAccess(forceRefresh)
+      setHasSubscription(hasAccess)
+      
+      if (!hasAccess) {
+        // Show subscription required screen
+        showSubscriptionRequired()
+        return false
+      }
+      return true
+    } catch (error) {
+      console.error('Error checking subscription:', error)
+      setHasSubscription(false)
+      return false
+    } finally {
+      setCheckingSubscription(false)
+    }
+  }
+
+  // Show subscription required alert
+  const showSubscriptionRequired = () => {
+    Alert.alert(
+      currentLanguage === 'fr' ? 'Abonnement Requis' : 'Subscription Required',
+      currentLanguage === 'fr' 
+        ? 'Vous devez souscrire à l\'accès à l\'annuaire des avocats pour voir cette page. Coût unique: 500 XAF'
+        : 'You need to subscribe to lawyers directory access to view this page. One-time fee: 500 XAF',
+      [
+        {
+          text: currentLanguage === 'fr' ? 'Plus tard' : 'Later',
+          style: 'cancel',
+          onPress: () => navigation.goBack()
+        },
+        {
+          text: currentLanguage === 'fr' ? 'S\'abonner' : 'Subscribe',
+          onPress: () => navigation.navigate('LawyersSubscription')
+        }
+      ]
+    )
+  }
+
   // Load lawyers from database
   const loadLawyers = async () => {
     try {
@@ -68,14 +114,23 @@ export default function FindLawyerScreen({ navigation }) {
   // Refresh lawyers data
   const onRefresh = async () => {
     setRefreshing(true)
-    await loadLawyers()
+    const hasAccess = await checkSubscription(true) // Force refresh from database
+    if (hasAccess) {
+      await loadLawyers()
+    }
     setRefreshing(false)
   }
 
   // Load lawyers when screen focuses
   useFocusEffect(
     useCallback(() => {
-      loadLawyers()
+      const initializeScreen = async () => {
+        const hasAccess = await checkSubscription(true) // Force refresh from database when screen focuses
+        if (hasAccess) {
+          await loadLawyers()
+        }
+      }
+      initializeScreen()
     }, [])
   )
 
@@ -246,6 +301,54 @@ export default function FindLawyerScreen({ navigation }) {
       </Card.Content>
     </Card>
   )
+
+  // Show loading screen while checking subscription
+  if (checkingSubscription) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator animating={true} size="large" color={theme.colors.primary} />
+          <Text variant="bodyMedium" style={{ color: theme.colors.outline, marginTop: 16 }}>
+            {currentLanguage === 'fr' ? 'Vérification de l\'abonnement...' : 'Checking subscription...'}
+          </Text>
+        </View>
+      </SafeAreaView>
+    )
+  }
+
+  // Don't render main content if user doesn't have subscription
+  if (!hasSubscription) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <View style={styles.subscriptionRequiredContainer}>
+          <Icon name="gavel" size={64} color={theme.colors.outline} />
+          <Text variant="headlineMedium" style={{ color: theme.colors.onSurface, textAlign: 'center', marginTop: 16 }}>
+            {currentLanguage === 'fr' ? 'Abonnement Requis' : 'Subscription Required'}
+          </Text>
+          <Text variant="bodyMedium" style={{ color: theme.colors.outline, textAlign: 'center', marginTop: 8, marginHorizontal: 32 }}>
+            {currentLanguage === 'fr' 
+              ? 'Souscrivez à l\'accès à l\'annuaire des avocats pour voir cette page.'
+              : 'Subscribe to lawyers directory access to view this page.'
+            }
+          </Text>
+          <Button 
+            mode="contained" 
+            onPress={() => navigation.navigate('LawyersSubscription')}
+            style={{ marginTop: 24, marginHorizontal: 32 }}
+          >
+            {currentLanguage === 'fr' ? 'S\'abonner (500 XAF)' : 'Subscribe (500 XAF)'}
+          </Button>
+          <Button 
+            mode="text" 
+            onPress={() => navigation.goBack()}
+            style={{ marginTop: 8 }}
+          >
+            {currentLanguage === 'fr' ? 'Retour' : 'Go Back'}
+          </Button>
+        </View>
+      </SafeAreaView>
+    )
+  }
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -441,5 +544,13 @@ const styles = StyleSheet.create({
   loadingContainer: {
     alignItems: 'center',
     paddingVertical: 40,
+    justifyContent: 'center',
+    flex: 1,
+  },
+  subscriptionRequiredContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
+    paddingHorizontal: 20,
   },
 }) 

@@ -70,7 +70,7 @@ export default function SettingsScreen({ navigation }) {
         logoutMessage: "Êtes-vous sûr de vouloir vous déconnecter ?",
         cancel: "Annuler",
         supportTitle: "Support",
-        supportMessage: "Contactez-nous à support@legal237.com ou appelez +237 123 456 789",
+        supportMessage: "Contactez-nous à support@legal237.com ou appelez +237682310407",
         ok: "OK"
       }
     } else {
@@ -96,7 +96,7 @@ export default function SettingsScreen({ navigation }) {
         logoutMessage: "Are you sure you want to logout?",
         cancel: "Cancel",
         supportTitle: "Support",
-        supportMessage: "Contact us at support@legal237.com or call +237 123 456 789",
+        supportMessage: "Contact us at support@legal237.com or call +237682310407",
         ok: "OK"
       }
     }
