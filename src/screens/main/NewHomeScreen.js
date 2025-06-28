@@ -309,7 +309,7 @@ export default function NewHomeScreen({ navigation }) {
           onPress={() => navigation.navigate('FindLawyer')}
           activeOpacity={0.8}
         >
-          <View style={[styles.lawyerBannerGradient, { backgroundColor: '#6366F1' }]}>
+          <View style={[styles.lawyerBannerGradient, { backgroundColor: '#059669' }]}>
             <View style={styles.lawyerBannerContent}>
               <View style={styles.lawyerBannerLeft}>
                 <View style={styles.lawyerIconWrapper}>
@@ -351,7 +351,7 @@ export default function NewHomeScreen({ navigation }) {
                 <View style={styles.gradientCard}>
                   <View style={styles.cardHeader}>
                     <View style={styles.iconWrapper}>
-                      <Icon name={getCategoryIcon(category.icon)} size={28} color="#6366F1" />
+                      <Icon name={getCategoryIcon(category.icon)} size={28} color="#059669" />
                     </View>
                     <View style={styles.statsContainer}>
                       <Text style={[styles.statsNumber, { fontSize: 20, color: '#1A1A1A' }]}>{category.active_articles}</Text>
@@ -613,7 +613,7 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 16,
-    backgroundColor: '#6366F1',
+    backgroundColor: '#059669',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
@@ -637,7 +637,7 @@ const styles = StyleSheet.create({
     marginBottom: 28,
     borderRadius: 20,
     overflow: 'hidden',
-    shadowColor: '#6366F1',
+    shadowColor: '#059669',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 12,
