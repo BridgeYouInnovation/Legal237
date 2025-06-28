@@ -5,12 +5,13 @@ import { useTheme } from "react-native-paper"
 import Icon from "react-native-vector-icons/MaterialIcons"
 import { useTranslation } from "react-i18next"
 
-import HomeScreen from "../screens/main/HomeScreen"
+// Use the new screens that support the reorganized laws system
+import NewHomeScreen from "../screens/main/NewHomeScreen"
 import FindLawyerScreen from "../screens/main/FindLawyerScreen"
 import ChatScreen from "../screens/main/ChatScreen"
 import BookmarksScreen from "../screens/main/BookmarksScreen"
 import SettingsScreen from "../screens/main/SettingsScreen"
-import LawViewerScreen from "../screens/main/LawViewerScreen"
+import NewLawViewerScreen from "../screens/main/NewLawViewerScreen"
 import SearchResultsScreen from "../screens/main/SearchResultsScreen"
 import SearchScreen from "../screens/main/SearchScreen"
 import PaymentScreen from "../screens/main/PaymentScreen"
@@ -25,9 +26,9 @@ const Stack = createStackNavigator()
 function HomeStack() {
   return (
     <Stack.Navigator>
-      <Stack.Screen name="HomeMain" component={HomeScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="HomeMain" component={NewHomeScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Search" component={SearchScreen} options={{ title: "Search" }} />
-      <Stack.Screen name="LawViewer" component={LawViewerScreen} options={{ title: "Law Viewer" }} />
+      <Stack.Screen name="LawViewer" component={NewLawViewerScreen} options={{ title: "Law Viewer" }} />
       <Stack.Screen name="SearchResults" component={SearchResultsScreen} options={{ title: "Search Results" }} />
       <Stack.Screen name="ArticleDetail" component={ArticleDetailScreen} options={{ title: "Article Detail" }} />
       <Stack.Screen name="Chat" component={ChatScreen} options={{ title: "AI Legal Assistant" }} />

@@ -1,35 +1,35 @@
--- Legal237 Platform - New Laws Database Schema
--- Run this script in your Supabase SQL editor
+-- Legal237 New Laws Database Schema
+-- This schema reorganizes laws into proper categories and structure
 
--- 1. Law Categories Table (Master table for different types of laws)
+-- 1. Law Categories Table (Main law types)
 CREATE TABLE IF NOT EXISTS law_categories (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    code VARCHAR(50) UNIQUE NOT NULL, -- e.g., 'penal_code', 'criminal_procedure', 'civil_code'
+    code VARCHAR(50) UNIQUE NOT NULL, -- e.g., 'penal_code', 'civil_code'
     name_en VARCHAR(255) NOT NULL,
     name_fr VARCHAR(255) NOT NULL,
     description_en TEXT,
     description_fr TEXT,
-    icon VARCHAR(50), -- Icon name for UI
-    color VARCHAR(7), -- Hex color code for UI theming
-    price INTEGER DEFAULT 1000, -- Price in XAF
+    icon VARCHAR(50) DEFAULT 'document-text', -- For UI display
+    color VARCHAR(7) DEFAULT '#3B82F6', -- Hex color for UI
+    price DECIMAL(10,2) DEFAULT 0, -- Price in XAF
     currency VARCHAR(3) DEFAULT 'XAF',
-    display_order INTEGER DEFAULT 0, -- For ordering in UI
+    display_order INTEGER DEFAULT 0, -- For custom ordering
     is_active BOOLEAN DEFAULT true,
-    is_free BOOLEAN DEFAULT false, -- Some laws might be free
+    is_free BOOLEAN DEFAULT false, -- Whether this category is free to access
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 2. Law Books Table (For organizing articles into books/sections)
+-- 2. Law Books Table (Subdivisions within categories - optional)
 CREATE TABLE IF NOT EXISTS law_books (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     category_id UUID REFERENCES law_categories(id) ON DELETE CASCADE,
-    code VARCHAR(50) NOT NULL, -- e.g., 'book_1', 'book_2'
+    code VARCHAR(50) NOT NULL, -- e.g., 'book_1', 'part_a'
     name_en VARCHAR(255) NOT NULL,
     name_fr VARCHAR(255) NOT NULL,
     description_en TEXT,
     description_fr TEXT,
-    display_order INTEGER DEFAULT 0,
+    display_order INTEGER DEFAULT 0, -- For ordering within category
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
@@ -37,13 +37,13 @@ CREATE TABLE IF NOT EXISTS law_books (
     UNIQUE(category_id, code)
 );
 
--- 3. Law Articles Table (Redesigned with proper structure)
+-- 3. Law Articles Table (Individual articles)
 CREATE TABLE IF NOT EXISTS law_articles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     category_id UUID REFERENCES law_categories(id) ON DELETE CASCADE,
-    book_id UUID REFERENCES law_books(id) ON DELETE SET NULL,
-    article_number INTEGER NOT NULL, -- Numeric ordering: 1, 2, 3, etc.
-    article_id VARCHAR(20) NOT NULL, -- Display ID: "1", "1-1", "2", etc.
+    book_id UUID REFERENCES law_books(id) ON DELETE SET NULL, -- Optional book subdivision
+    article_number INTEGER NOT NULL, -- Sequential number within category
+    article_id VARCHAR(50) NOT NULL, -- Human-readable ID like "1", "1-1", "2a"
     title_en TEXT,
     title_fr TEXT,
     content_en TEXT NOT NULL,
@@ -237,13 +237,19 @@ SELECT
     c.code,
     c.name_en,
     c.name_fr,
+    c.description_en,
+    c.description_fr,
+    c.icon,
+    c.color,
     c.price,
+    c.currency,
     c.display_order,
     c.is_active,
+    c.is_free,
     COUNT(a.id) as total_articles,
     COUNT(CASE WHEN a.is_active = true THEN 1 END) as active_articles,
     MAX(a.updated_at) as last_updated
 FROM law_categories c
 LEFT JOIN law_articles a ON c.id = a.category_id
-GROUP BY c.id, c.code, c.name_en, c.name_fr, c.price, c.display_order, c.is_active
+GROUP BY c.id, c.code, c.name_en, c.name_fr, c.description_en, c.description_fr, c.icon, c.color, c.price, c.currency, c.display_order, c.is_active, c.is_free
 ORDER BY c.display_order; 

@@ -181,8 +181,12 @@ export default function NewHomeScreen({ navigation }) {
         paid: "Accès",
         free: "Gratuit",
         requiresPayment: "Payant",
-        totalCategories: "Catégories totales",
-        accessibleArticles: "Articles accessibles"
+        totalCategories: "Livres totaux",
+        accessibleArticles: "Articles accessibles",
+        lawyerBannerTitle: "Besoin d'un Avocat ?",
+        lawyerBannerSubtitle: "Trouvez des avocats qualifiés près de chez vous",
+        lawyerBannerButton: "Explorer les Avocats",
+        legalDocuments: "Documents Légaux"
       };
     } else {
       return {
@@ -196,8 +200,12 @@ export default function NewHomeScreen({ navigation }) {
         paid: "Access",
         free: "Free",
         requiresPayment: "Paid",
-        totalCategories: "Total Categories",
-        accessibleArticles: "Accessible Articles"
+        totalCategories: "Total Books",
+        accessibleArticles: "Accessible Articles",
+        lawyerBannerTitle: "Need a Lawyer?",
+        lawyerBannerSubtitle: "Find qualified lawyers near you",
+        lawyerBannerButton: "Explore Lawyers",
+        legalDocuments: "Legal Documents"
       };
     }
   };
@@ -295,10 +303,41 @@ export default function NewHomeScreen({ navigation }) {
           </View>
         )}
 
-        {/* Quick Access Section */}
+        {/* Lawyer Banner Section */}
+        <TouchableOpacity
+          style={styles.lawyerBanner}
+          onPress={() => navigation.navigate('FindLawyer')}
+          activeOpacity={0.8}
+        >
+          <View style={[styles.lawyerBannerGradient, { backgroundColor: '#6366F1' }]}>
+            <View style={styles.lawyerBannerContent}>
+              <View style={styles.lawyerBannerLeft}>
+                <View style={styles.lawyerIconWrapper}>
+                  <Icon name="gavel" size={32} color="white" />
+                </View>
+                <View style={styles.lawyerTextContainer}>
+                  <Text variant="titleMedium" style={styles.lawyerBannerTitle}>
+                    {content.lawyerBannerTitle}
+                  </Text>
+                  <Text variant="bodyMedium" style={styles.lawyerBannerSubtitle}>
+                    {content.lawyerBannerSubtitle}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.lawyerBannerRight}>
+                <View style={styles.lawyerButton}>
+                  <Text style={styles.lawyerButtonText}>{content.lawyerBannerButton}</Text>
+                </View>
+                <Icon name="arrow-forward" size={20} color="white" />
+              </View>
+            </View>
+          </View>
+        </TouchableOpacity>
+
+        {/* Legal Documents Section */}
         <View style={styles.section}>
           <Text variant="titleLarge" style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
-            {content.quickAccess}
+            {content.legalDocuments}
           </Text>
 
           <View style={styles.categoriesGrid}>
@@ -309,19 +348,14 @@ export default function NewHomeScreen({ navigation }) {
                 onPress={() => handleCategoryPress(category)}
                 activeOpacity={0.8}
               >
-                <LinearGradient
-                  colors={getCategoryGradient(category.color, index)}
-                  style={styles.gradientCard}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                >
+                <View style={styles.gradientCard}>
                   <View style={styles.cardHeader}>
                     <View style={styles.iconWrapper}>
-                      <Icon name={getCategoryIcon(category.icon)} size={28} color="white" />
+                      <Icon name={getCategoryIcon(category.icon)} size={28} color="#6366F1" />
                     </View>
                     <View style={styles.statsContainer}>
-                      <Text style={styles.statsNumber}>{category.active_articles}</Text>
-                      <Text style={styles.statsLabel}>{content.articles}</Text>
+                      <Text style={[styles.statsNumber, { fontSize: 20, color: '#1A1A1A' }]}>{category.active_articles}</Text>
+                      <Text style={[styles.statsLabel, { fontSize: 11, color: '#666666' }]}>{content.articles}</Text>
                     </View>
                   </View>
                   
@@ -337,21 +371,21 @@ export default function NewHomeScreen({ navigation }) {
                   <View style={styles.cardFooter}>
                     {category.has_access || category.is_free ? (
                       <View style={styles.accessIndicator}>
-                        <Icon name="check-circle" size={14} color="white" />
+                        <Icon name="check-circle" size={14} color="#2D7D32" />
                         <Text style={styles.accessText}>
                           {category.is_free ? content.free : content.paid}
                         </Text>
                       </View>
                     ) : (
                       <View style={styles.paymentIndicator}>
-                        <Icon name="lock" size={14} color="white" />
+                        <Icon name="lock" size={14} color="#F57C00" />
                         <Text style={styles.paymentText}>
                           {category.price} {category.currency}
                         </Text>
                       </View>
                     )}
                   </View>
-                </LinearGradient>
+                </View>
               </TouchableOpacity>
             ))}
           </View>
@@ -435,57 +469,79 @@ const styles = StyleSheet.create({
   },
   statsGrid: {
     flexDirection: 'row',
-    gap: 12,
+    justifyContent: 'space-between',
   },
   statsCard: {
     flex: 1,
-    padding: 16,
-    borderRadius: 12,
+    padding: 20,
+    borderRadius: 16,
     alignItems: 'center',
+    marginHorizontal: 6,
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
   },
   statsNumber: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 28,
+    fontWeight: '700',
     marginBottom: 4,
+    color: '#1A1A1A',
   },
   statsLabel: {
-    fontSize: 12,
+    fontSize: 13,
     textAlign: 'center',
+    color: '#666666',
+    fontWeight: '500',
   },
   section: {
-    marginBottom: 24,
+    marginBottom: 32,
   },
   sectionTitle: {
-    marginBottom: 16,
-    fontWeight: '600',
+    marginBottom: 20,
+    fontWeight: '700',
+    fontSize: 20,
+    color: '#1A1A1A',
   },
   categoriesGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    justifyContent: 'space-between',
   },
   categoryCard: {
-    width: (width - 40) / 2,
-    marginBottom: 12,
+    width: (width - 44) / 2,
+    marginBottom: 16,
   },
   gradientCard: {
-    borderRadius: 16,
-    padding: 16,
-    minHeight: 140,
+    borderRadius: 20,
+    padding: 20,
+    minHeight: 160,
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 5,
+    borderWidth: 1,
+    borderColor: '#F0F0F0',
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   iconWrapper: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    width: 50,
+    height: 50,
+    borderRadius: 16,
+    backgroundColor: '#F8F9FA',
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E9ECEF',
   },
   statsContainer: {
     alignItems: 'flex-end',
@@ -495,61 +551,69 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   cardTitle: {
-    color: 'white',
-    fontWeight: '600',
-    marginBottom: 4,
+    color: '#1A1A1A',
+    fontWeight: '700',
+    marginBottom: 6,
+    fontSize: 16,
   },
   cardSubtitle: {
-    color: 'rgba(255, 255, 255, 0.8)',
-    lineHeight: 16,
+    color: '#666666',
+    lineHeight: 18,
+    fontSize: 13,
   },
   cardFooter: {
-    marginTop: 12,
+    marginTop: 16,
   },
   accessIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
+    backgroundColor: '#E8F5E8',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
     alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: '#C3E6C3',
   },
   accessText: {
-    color: 'white',
+    color: '#2D7D32',
     fontSize: 12,
-    fontWeight: '500',
+    fontWeight: '600',
     marginLeft: 4,
   },
   paymentIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
+    backgroundColor: '#FFF3E0',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
     alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: '#FFE0B2',
   },
   paymentText: {
-    color: 'white',
+    color: '#F57C00',
     fontSize: 12,
-    fontWeight: '500',
+    fontWeight: '600',
     marginLeft: 4,
   },
   aiCard: {
     marginBottom: 24,
   },
   aiCardContent: {
-    paddingVertical: 20,
+    paddingVertical: 24,
+    paddingHorizontal: 20,
   },
   aiHeader: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   aiIconWrapper: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: '#6366F1',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
@@ -560,9 +624,77 @@ const styles = StyleSheet.create({
   topicsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
   },
   topicChip: {
+    marginBottom: 8,
+    marginRight: 8,
+    backgroundColor: '#F8F9FA',
+    borderWidth: 1,
+    borderColor: '#E9ECEF',
+  },
+  // Lawyer Banner Styles
+  lawyerBanner: {
+    marginBottom: 28,
+    borderRadius: 20,
+    overflow: 'hidden',
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  lawyerBannerGradient: {
+    padding: 24,
+  },
+  lawyerBannerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  lawyerBannerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  lawyerIconWrapper: {
+    width: 60,
+    height: 60,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  lawyerTextContainer: {
+    flex: 1,
+  },
+  lawyerBannerTitle: {
+    color: 'white',
+    fontWeight: '700',
     marginBottom: 4,
+    fontSize: 18,
+  },
+  lawyerBannerSubtitle: {
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  lawyerBannerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  lawyerButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+    marginRight: 12,
+  },
+  lawyerButtonText: {
+    color: 'white',
+    fontSize: 13,
+    fontWeight: '600',
   },
 }); 
