@@ -135,10 +135,11 @@ export default function NewLawViewerScreen({ route, navigation }) {
   };
 
   const handleBookmarkToggle = (article) => {
+    const articlePrefix = article.article_prefix || 'Article';
     const bookmarkData = {
       id: article.id,
       article_id: article.article_id,
-      title: article.title || `Article ${article.article_id}`,
+      title: article.title || `${articlePrefix} ${article.article_id}`,
       content: article.content.substring(0, 200) + '...',
       category_code: article.category_code,
       category_name: article.category_name,
@@ -154,9 +155,10 @@ export default function NewLawViewerScreen({ route, navigation }) {
 
   const handleShare = async (article) => {
     try {
+      const articlePrefix = article.article_prefix || (currentLanguage === 'fr' ? categoryInfo?.article_prefix_fr : categoryInfo?.article_prefix_en) || 'Article';
       const shareContent = {
-        title: `${categoryInfo?.name_en || 'Legal Article'} - Article ${article.article_id}`,
-        message: `${article.title || `Article ${article.article_id}`}\n\n${article.content.substring(0, 500)}${article.content.length > 500 ? '...' : ''}\n\nFrom Legal237 App`,
+        title: `${categoryInfo?.name_en || 'Legal Article'} - ${articlePrefix} ${article.article_id}`,
+        message: `${article.title || `${articlePrefix} ${article.article_id}`}\n\n${article.content.substring(0, 500)}${article.content.length > 500 ? '...' : ''}\n\nFrom Legal237 App`,
       };
 
       await Share.share(shareContent);
@@ -225,7 +227,7 @@ export default function NewLawViewerScreen({ route, navigation }) {
           <View style={styles.articleHeader}>
             <View style={styles.articleInfo}>
               <Text variant="titleMedium" style={[styles.articleNumber, { color: theme.colors.primary }]}>
-                Article {article.article_id}
+                {article.article_prefix || 'Article'} {article.article_id}
               </Text>
               {article.version && (
                 <Chip
@@ -309,7 +311,7 @@ export default function NewLawViewerScreen({ route, navigation }) {
         <View style={styles.detailCardContent}>
           <View style={styles.detailTitleSection}>
             <Text variant="headlineSmall" style={[styles.detailArticleNumber, { color: theme.colors.primary }]}>
-              Article {selectedArticle.article_id}
+              {selectedArticle.article_prefix || 'Article'} {selectedArticle.article_id}
             </Text>
             {selectedArticle.version && (
               <Chip

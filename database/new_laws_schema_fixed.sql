@@ -9,6 +9,8 @@ CREATE TABLE IF NOT EXISTS law_categories (
     name_fr VARCHAR(255) NOT NULL,
     description_en TEXT,
     description_fr TEXT,
+    article_prefix_en VARCHAR(50) DEFAULT 'Article', -- Prefix for articles (e.g., "Article", "Section")
+    article_prefix_fr VARCHAR(50) DEFAULT 'Article', -- French prefix for articles
     icon VARCHAR(50) DEFAULT 'document-text', -- For UI display
     color VARCHAR(7) DEFAULT '#3B82F6', -- Hex color for UI
     price DECIMAL(10,2) DEFAULT 0, -- Price in XAF
@@ -183,18 +185,20 @@ CREATE TRIGGER create_article_version_trigger
     EXECUTE FUNCTION create_article_version();
 
 -- Insert initial law categories
-INSERT INTO law_categories (code, name_en, name_fr, description_en, description_fr, icon, color, price, display_order) VALUES
-('penal_code', 'Cameroon Penal Code', 'Code Pénal du Cameroun', 'Criminal laws and penalties in Cameroon', 'Lois pénales et sanctions au Cameroun', 'gavel', '#DC2626', 1000, 1),
-('criminal_procedure', 'Criminal Procedure Code', 'Code de Procédure Pénale', 'Criminal procedure and court processes', 'Procédure pénale et processus judiciaires', 'scale-balanced', '#2563EB', 1000, 2),
-('civil_code', 'Civil Code', 'Code Civil', 'Civil law matters and procedures', 'Questions de droit civil et procédures', 'users', '#059669', 1500, 3),
-('commercial_code', 'Commercial Code', 'Code de Commerce', 'Business and commercial law', 'Droit commercial et des affaires', 'briefcase', '#7C3AED', 1500, 4),
-('labor_code', 'Labor Code', 'Code du Travail', 'Employment and labor law', 'Droit du travail et de l''emploi', 'hard-hat', '#EA580C', 1200, 5),
-('family_code', 'Family Code', 'Code de la Famille', 'Family law and matrimonial matters', 'Droit de la famille et questions matrimoniales', 'home', '#DB2777', 1200, 6)
+INSERT INTO law_categories (code, name_en, name_fr, description_en, description_fr, article_prefix_en, article_prefix_fr, icon, color, price, display_order) VALUES
+('penal_code', 'Cameroon Penal Code', 'Code Pénal du Cameroun', 'Criminal laws and penalties in Cameroon', 'Lois pénales et sanctions au Cameroun', 'Article', 'Article', 'gavel', '#DC2626', 1000, 1),
+('criminal_procedure', 'Criminal Procedure Code', 'Code de Procédure Pénale', 'Criminal procedure and court processes', 'Procédure pénale et processus judiciaires', 'Article', 'Article', 'scale-balanced', '#2563EB', 1000, 2),
+('civil_code', 'Civil Code', 'Code Civil', 'Civil law matters and procedures', 'Questions de droit civil et procédures', 'Section', 'Section', 'users', '#059669', 1500, 3),
+('commercial_code', 'Commercial Code', 'Code de Commerce', 'Business and commercial law', 'Droit commercial et des affaires', 'Article', 'Article', 'briefcase', '#7C3AED', 1500, 4),
+('labor_code', 'Labor Code', 'Code du Travail', 'Employment and labor law', 'Droit du travail et de l''emploi', 'Section', 'Section', 'hard-hat', '#EA580C', 1200, 5),
+('family_code', 'Family Code', 'Code de la Famille', 'Family law and matrimonial matters', 'Droit de la famille et questions matrimoniales', 'Article', 'Article', 'home', '#DB2777', 1200, 6)
 ON CONFLICT (code) DO UPDATE SET
     name_en = EXCLUDED.name_en,
     name_fr = EXCLUDED.name_fr,
     description_en = EXCLUDED.description_en,
     description_fr = EXCLUDED.description_fr,
+    article_prefix_en = EXCLUDED.article_prefix_en,
+    article_prefix_fr = EXCLUDED.article_prefix_fr,
     icon = EXCLUDED.icon,
     color = EXCLUDED.color,
     price = EXCLUDED.price,
@@ -218,6 +222,8 @@ SELECT
     c.code as category_code,
     c.name_en as category_name_en,
     c.name_fr as category_name_fr,
+    c.article_prefix_en as category_article_prefix_en,
+    c.article_prefix_fr as category_article_prefix_fr,
     c.icon as category_icon,
     c.color as category_color,
     c.price as category_price,

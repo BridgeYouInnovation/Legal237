@@ -313,22 +313,24 @@ export default function NewHomeScreen({ navigation }) {
             <View style={styles.lawyerBannerContent}>
               <View style={styles.lawyerBannerLeft}>
                 <View style={styles.lawyerIconWrapper}>
-                  <Icon name="gavel" size={32} color="white" />
+                  <Icon name="gavel" size={width < 350 ? 24 : 28} color="white" />
                 </View>
                 <View style={styles.lawyerTextContainer}>
-                  <Text variant="titleMedium" style={styles.lawyerBannerTitle}>
+                  <Text style={styles.lawyerBannerTitle} numberOfLines={1}>
                     {content.lawyerBannerTitle}
                   </Text>
-                  <Text variant="bodyMedium" style={styles.lawyerBannerSubtitle}>
+                  <Text style={styles.lawyerBannerSubtitle} numberOfLines={2}>
                     {content.lawyerBannerSubtitle}
                   </Text>
                 </View>
               </View>
               <View style={styles.lawyerBannerRight}>
                 <View style={styles.lawyerButton}>
-                  <Text style={styles.lawyerButtonText}>{content.lawyerBannerButton}</Text>
+                  <Text style={styles.lawyerButtonText} numberOfLines={1}>
+                    {content.lawyerBannerButton}
+                  </Text>
                 </View>
-                <Icon name="arrow-forward" size={20} color="white" />
+                <Icon name="arrow-forward" size={width < 350 ? 16 : 20} color="white" />
               </View>
             </View>
           </View>
@@ -644,57 +646,69 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   lawyerBannerGradient: {
-    padding: 24,
+    paddingVertical: width < 350 ? 20 : 26,
+    paddingHorizontal: width < 350 ? 18 : 24,
   },
   lawyerBannerContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    minHeight: width < 350 ? 70 : 80,
   },
   lawyerBannerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
+    marginRight: width < 350 ? 10 : 14,
   },
   lawyerIconWrapper: {
-    width: 60,
-    height: 60,
-    borderRadius: 18,
+    width: width < 350 ? 50 : 58,
+    height: width < 350 ? 50 : 58,
+    borderRadius: width < 350 ? 15 : 17,
     backgroundColor: 'rgba(255, 255, 255, 0.25)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16,
+    marginRight: width < 350 ? 14 : 18,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   lawyerTextContainer: {
     flex: 1,
+    paddingRight: 10,
   },
   lawyerBannerTitle: {
     color: 'white',
     fontWeight: '700',
-    marginBottom: 4,
-    fontSize: 18,
+    marginBottom: 6,
+    fontSize: width < 350 ? 17 : width < 400 ? 18 : 19,
+    lineHeight: width < 350 ? 22 : width < 400 ? 24 : 26,
   },
   lawyerBannerSubtitle: {
     color: 'rgba(255, 255, 255, 0.9)',
-    fontSize: 14,
+    fontSize: width < 350 ? 13 : width < 400 ? 14 : 15,
     fontWeight: '500',
+    lineHeight: width < 350 ? 18 : width < 400 ? 20 : 22,
   },
   lawyerBannerRight: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexShrink: 0,
   },
   lawyerButton: {
     backgroundColor: 'rgba(255, 255, 255, 0.25)',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 24,
+    paddingHorizontal: width < 350 ? 14 : 18,
+    paddingVertical: width < 350 ? 10 : 12,
+    borderRadius: width < 350 ? 22 : 26,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.4)',
-    marginRight: 12,
+    marginRight: width < 350 ? 10 : 14,
+    minWidth: width < 350 ? 70 : 90,
+    alignItems: 'center',
   },
   lawyerButtonText: {
     color: 'white',
-    fontSize: 13,
+    fontSize: width < 350 ? 12 : width < 400 ? 13 : 14,
     fontWeight: '600',
+    textAlign: 'center',
   },
 }); 
