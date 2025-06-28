@@ -18,6 +18,7 @@ import Laws from './pages/Laws';
 import Lawyers from './pages/Lawyers';
 import Users from './pages/Users';
 import Subscriptions from './pages/Subscriptions';
+import Login from './pages/Login';
 import PaymentSuccess from './pages/PaymentSuccess';
 import PaymentCancelled from './pages/PaymentCancelled';
 import PaymentFailed from './pages/PaymentFailed';
@@ -100,16 +101,6 @@ const DebugInfo: React.FC = () => {
   );
 };
 
-// Simple test component to verify routing
-const TestLogin: React.FC = () => {
-  return (
-    <div style={{ backgroundColor: 'orange', minHeight: '100vh', padding: '20px' }}>
-      <h1 style={{ color: 'black', fontSize: '48px' }}>TEST LOGIN COMPONENT WORKING!</h1>
-      <p>This means the route is working, but there might be an issue with the actual Login component.</p>
-    </div>
-  );
-};
-
 const AdminRoutes: React.FC = () => {
   const { user, loading, supabaseError } = useAuth();
 
@@ -151,8 +142,8 @@ const AdminRoutes: React.FC = () => {
     console.log('Is login page:', isLoginPage);
     
     if (isLoginPage) {
-      console.log('Rendering TestLogin directly');
-      return <TestLogin />;
+      console.log('Rendering Login directly');
+      return <Login />;
     }
     
     return (
@@ -167,7 +158,7 @@ const AdminRoutes: React.FC = () => {
           Go to Login Page (Test)
         </button>
         <Routes>
-          <Route path="login" element={<TestLogin />} />
+          <Route path="login" element={<Login />} />
           <Route path="debug" element={<DebugInfo />} />
           <Route path="payment/success" element={<PaymentSuccess />} />
           <Route path="payment/cancelled" element={<PaymentCancelled />} />
