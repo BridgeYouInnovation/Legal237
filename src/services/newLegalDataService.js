@@ -61,20 +61,46 @@ class NewLegalDataService {
         return [];
       }
 
-      // Get user's document access
-      const { data, error } = await supabase
+      console.log(`🔍 Loading purchases for user: ${user.id}`);
+
+      // Check both payment sources for user purchases
+      const userPurchases = new Set();
+
+      // 1. Check payment_records table (existing system)
+      const { data: paymentRecords, error: paymentError } = await supabase
+        .from('payment_records')
+        .select('document_type')
+        .eq('user_id', user.id)
+        .eq('status', 'completed');
+
+      if (paymentError) {
+        console.warn('Error loading payment records:', paymentError);
+      } else if (paymentRecords) {
+        paymentRecords.forEach(record => {
+          userPurchases.add(record.document_type);
+        });
+        console.log(`💳 Found ${paymentRecords.length} completed payments in payment_records`);
+      }
+
+      // 2. Check document_access table (new system)
+      const { data: documentAccess, error: accessError } = await supabase
         .from('document_access')
         .select('document_type')
         .eq('user_id', user.id)
         .eq('status', 'active');
 
-      if (error) {
-        console.warn('Failed to load user purchases:', error);
-        return [];
+      if (accessError) {
+        console.warn('Error loading document access:', accessError);
+      } else if (documentAccess) {
+        documentAccess.forEach(record => {
+          userPurchases.add(record.document_type);
+        });
+        console.log(`📋 Found ${documentAccess.length} active access records in document_access`);
       }
 
-      this.userPurchases = data?.map(item => item.document_type) || [];
-      console.log(`💳 User has access to: ${this.userPurchases.join(', ')}`);
+      // Convert Set to Array
+      this.userPurchases = Array.from(userPurchases);
+      console.log(`💰 Total user purchases: ${this.userPurchases.length} [${this.userPurchases.join(', ')}]`);
       
       return this.userPurchases;
     } catch (error) {
@@ -246,8 +272,10 @@ class NewLegalDataService {
         throw new Error('User not authenticated');
       }
 
-      // Add to document_access table
-      const { error } = await supabase
+      console.log(`🔄 Syncing purchase for ${categoryCode} to database...`);
+
+      // Add to document_access table (new system)
+      const { error: accessError } = await supabase
         .from('document_access')
         .insert({
           user_id: user.id,
@@ -256,14 +284,31 @@ class NewLegalDataService {
           granted_at: new Date().toISOString()
         });
 
-      if (error && error.code !== '23505') { // Ignore duplicate key errors
-        throw error;
+      if (accessError && accessError.code !== '23505') { // Ignore duplicate key errors
+        console.warn('Error adding to document_access:', accessError);
+      } else {
+        console.log(`✅ Added to document_access: ${categoryCode}`);
+      }
+
+      // Also check if there's a corresponding payment record
+      const { data: existingPayment } = await supabase
+        .from('payment_records')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('document_type', categoryCode)
+        .eq('status', 'completed')
+        .limit(1);
+
+      if (existingPayment && existingPayment.length > 0) {
+        console.log(`💳 Payment record already exists for ${categoryCode}`);
+      } else {
+        console.log(`⚠️ No payment record found for ${categoryCode} - access granted via admin or other means`);
       }
 
       // Refresh user purchases
       await this.refreshUserPurchases();
       
-      console.log(`✅ Purchase synced for ${categoryCode}`);
+      console.log(`✅ Purchase sync completed for ${categoryCode}`);
     } catch (error) {
       console.error('Failed to sync purchase:', error);
       throw error;
