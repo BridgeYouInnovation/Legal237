@@ -45,6 +45,7 @@
     "yup": "^1.6.1"
   },
   "scripts": {
+    "prebuild": "echo 'Node version:' && node --version && echo 'NPM version:' && npm --version && echo 'Environment:' && env | grep NODE",
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
