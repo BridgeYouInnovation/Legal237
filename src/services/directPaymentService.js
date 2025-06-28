@@ -14,23 +14,59 @@ class DirectPaymentService {
 
   async testConnectivity() {
     try {
-      console.log('Testing connectivity to My-CoolPay...');
-      const testUrl = 'https://my-coolpay.com';
+      console.log('🔗 Testing connectivity to My-CoolPay...');
       
-      const response = await axios({
-        method: 'GET',
-        url: testUrl,
-        headers: { 'Accept': 'text/html,application/json' },
-        timeout: 15000,
-        validateStatus: function (status) {
-          return status >= 200 && status < 500;
+      // Test multiple endpoints to ensure connectivity
+      const testEndpoints = [
+        'https://my-coolpay.com',
+        'https://my-coolpay.com/api',
+        `https://my-coolpay.com/api/${this.publicKey}`
+      ];
+
+      for (const endpoint of testEndpoints) {
+        try {
+          console.log(`Testing: ${endpoint}`);
+          
+          // Try axios first
+          let response;
+          try {
+            response = await axios({
+              method: 'GET',
+              url: endpoint,
+              headers: { 'Accept': 'text/html,application/json' },
+              timeout: 10000,
+              validateStatus: function (status) {
+                return status >= 200 && status < 500;
+              }
+            });
+            console.log(`✅ Axios - ${endpoint} - Status: ${response.status}`);
+          } catch (axiosError) {
+            console.log(`⚠️ Axios failed for ${endpoint}, trying fetch...`);
+            
+            // Fallback to fetch
+            try {
+              response = await fetch(endpoint, {
+                method: 'GET',
+                headers: { 'Accept': 'text/html,application/json' }
+              });
+              console.log(`✅ Fetch - ${endpoint} - Status: ${response.status}`);
+            } catch (fetchError) {
+              console.log(`❌ Both failed for ${endpoint}`);
+              continue;
+            }
+          }
+          
+          if (response && response.status >= 200 && response.status < 400) {
+            return { success: true, status: response.status, endpoint };
+          }
+        } catch (error) {
+          console.log(`❌ ${endpoint} - Error: ${error.message}`);
         }
-      });
+      }
       
-      console.log('Connectivity test response status:', response.status);
-      return { success: true, status: response.status };
+      return { success: false, error: 'All connectivity tests failed' };
     } catch (error) {
-      console.error('Connectivity test failed:', error);
+      console.error('🔗 Connectivity test failed:', error);
       return { success: false, error: error.message };
     }
   }
@@ -91,33 +127,70 @@ class DirectPaymentService {
         customer_lang: 'en'
       };
 
-      console.log('Direct My-CoolPay payin:', paymentData);
+      console.log('🚀 Direct My-CoolPay payin:', paymentData);
 
       // Call My-CoolPay payin API directly for immediate payment processing
       const payinUrl = `${this.baseUrl}/${this.publicKey}/payin`;
-      console.log('Making request to URL:', payinUrl);
-      console.log('Request data:', JSON.stringify(paymentData, null, 2));
+      console.log('🎯 Making request to URL:', payinUrl);
+      console.log('📋 Request data:', JSON.stringify(paymentData, null, 2));
       
-      const response = await axios({
-        method: 'POST',
-        url: payinUrl,
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        data: paymentData,
-        timeout: 30000,
-        validateStatus: function (status) {
-          // Accept any status code between 200-500 to handle error responses properly
-          return status >= 200 && status < 500;
+      let response;
+      let result;
+      
+      try {
+        // Try axios first
+        console.log('📡 Attempting axios request...');
+        response = await axios({
+          method: 'POST',
+          url: payinUrl,
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'User-Agent': 'Legal237-Mobile-App/1.0.0'
+          },
+          data: paymentData,
+          timeout: 30000,
+          validateStatus: function (status) {
+            // Accept any status code between 200-500 to handle error responses properly
+            return status >= 200 && status < 500;
+          }
+        });
+        
+        result = response.data;
+        console.log('✅ Axios response:', { status: response.status, data: result });
+        
+      } catch (axiosError) {
+        console.warn('⚠️ Axios failed, trying fetch fallback:', axiosError.message);
+        
+        // Fallback to fetch if axios fails (common in React Native)
+        try {
+          console.log('📡 Attempting fetch request...');
+          response = await fetch(payinUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'User-Agent': 'Legal237-Mobile-App/1.0.0'
+            },
+            body: JSON.stringify(paymentData)
+          });
+          
+          const responseText = await response.text();
+          console.log('📥 Fetch response text:', responseText);
+          
+          try {
+            result = JSON.parse(responseText);
+            console.log('✅ Fetch response parsed:', { status: response.status, data: result });
+          } catch (parseError) {
+            console.error('❌ JSON parse error:', parseError);
+            throw new Error(`Invalid JSON response: ${responseText}`);
+          }
+          
+        } catch (fetchError) {
+          console.error('❌ Both axios and fetch failed:', fetchError);
+          throw new Error(`Network request failed: ${fetchError.message}`);
         }
-      });
-
-      console.log('Response status:', response.status);
-      console.log('Response headers:', JSON.stringify(response.headers));
-      console.log('My-CoolPay payin response:', JSON.stringify(response.data));
-
-      const result = response.data;
+      }
 
       if (result.status === 'success') {
         // Store transaction locally
