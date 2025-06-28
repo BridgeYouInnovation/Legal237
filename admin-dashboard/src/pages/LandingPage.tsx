@@ -27,7 +27,6 @@ import {
   Gavel,
   MenuBook,
   Search,
-  Star,
   Apple,
   Android,
   Language as LanguageIcon,
@@ -75,8 +74,6 @@ const LandingPage: React.FC = () => {
         subtitle: "Access all Cameroonian laws, find qualified lawyers, and get legal guidance - all in one app.",
         downloadIos: 'Download for iOS',
         downloadAndroid: 'Download for Android',
-        rating: '4.8/5 stars from 2,000+ users',
-        learnMore: 'Learn More',
       },
       stats: {
         legalCodes: 'Legal Codes',
@@ -142,8 +139,6 @@ const LandingPage: React.FC = () => {
         subtitle: "Accédez à toutes les lois camerounaises, trouvez des avocats qualifiés et obtenez des conseils juridiques - le tout dans une seule application.",
         downloadIos: 'Télécharger pour iOS',
         downloadAndroid: 'Télécharger pour Android',
-        rating: '4.8/5 étoiles de 2 000+ utilisateurs',
-        learnMore: 'En Savoir Plus',
       },
       stats: {
         legalCodes: 'Codes Juridiques',
@@ -510,17 +505,6 @@ const LandingPage: React.FC = () => {
                   {currentContent.hero.downloadAndroid}
                 </Button>
               </Box>
-              
-              <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', justifyContent: { xs: 'center', md: 'flex-start' } }}>
-                <Box sx={{ display: 'flex' }}>
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <Star key={star} sx={{ color: '#FFD700', fontSize: 24, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))' }} />
-                  ))}
-                </Box>
-                <Typography variant="body1" sx={{ opacity: 0.9, fontWeight: 500 }}>
-                  {currentContent.hero.rating}
-                </Typography>
-              </Box>
             </Box>
             
             <Box sx={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
@@ -547,7 +531,7 @@ const LandingPage: React.FC = () => {
               >
                 <Box
                   component="img"
-                  src="/app-icon.png"
+                  src="/app_picture.jpeg"
                   alt="Legal237 App"
                   sx={{ 
                     height: { xs: 200, md: 300 }, 
@@ -555,13 +539,11 @@ const LandingPage: React.FC = () => {
                     borderRadius: 4,
                     boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
                     filter: 'drop-shadow(0 10px 30px rgba(0,0,0,0.2))',
+                    objectFit: 'cover',
                   }}
                   onError={(e) => {
-                    // Fallback to phone icon if image doesn't load
-                    e.currentTarget.style.display = 'none';
-                    const fallback = document.createElement('div');
-                    fallback.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 300px; width: 300px; background: rgba(255,255,255,0.1); border-radius: 16px; border: 2px solid rgba(255,255,255,0.2);"><svg style="width: 150px; height: 150px; color: white;" viewBox="0 0 24 24"><path fill="currentColor" d="M17,19H7V5H17M17,1H7C5.89,1 5,1.89 5,3V21C5,22.11 5.89,23 7,23H17C18.11,23 19,22.11 19,21V3C19,1.89 18.11,1 17,1Z"/></svg></div>';
-                    e.currentTarget.parentNode?.appendChild(fallback);
+                    // Fallback to app-icon.png if app_picture.jpeg doesn't load
+                    e.currentTarget.src = '/app-icon.png';
                   }}
                 />
               </Box>
