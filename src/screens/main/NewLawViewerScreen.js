@@ -52,6 +52,25 @@ export default function NewLawViewerScreen({ route, navigation }) {
     filterArticles();
   }, [articles, searchQuery]);
 
+  // Add effect to reload articles when language changes
+  useEffect(() => {
+    if (currentLanguage) {
+      loadArticles();
+    }
+  }, [currentLanguage]);
+
+  // Listen to i18n language changes
+  useEffect(() => {
+    const handleLanguageChange = (lng) => {
+      setCurrentLanguage(lng);
+    };
+
+    i18n.on('languageChanged', handleLanguageChange);
+    return () => {
+      i18n.off('languageChanged', handleLanguageChange);
+    };
+  }, [i18n]);
+
   const loadLanguagePreference = async () => {
     try {
       const userLanguage = await AsyncStorage.getItem('user_language');
@@ -146,6 +165,16 @@ export default function NewLawViewerScreen({ route, navigation }) {
     }
   };
 
+  const handleLanguageChange = async (language) => {
+    try {
+      setCurrentLanguage(language);
+      await AsyncStorage.setItem('user_language', language);
+      await i18n.changeLanguage(language);
+    } catch (error) {
+      console.error('Error changing language:', error);
+    }
+  };
+
   const getLocalizedContent = () => {
     if (currentLanguage === 'fr') {
       return {
@@ -160,6 +189,9 @@ export default function NewLawViewerScreen({ route, navigation }) {
         version: 'Version',
         lastUpdated: 'Dernière mise à jour',
         backToList: 'Retour à la liste',
+        english: 'Anglais',
+        french: 'Français',
+        retry: 'Réessayer',
       };
     } else {
       return {
@@ -174,6 +206,9 @@ export default function NewLawViewerScreen({ route, navigation }) {
         version: 'Version',
         lastUpdated: 'Last updated',
         backToList: 'Back to list',
+        english: 'English',
+        french: 'French',
+        retry: 'Retry',
       };
     }
   };
@@ -340,6 +375,40 @@ export default function NewLawViewerScreen({ route, navigation }) {
             </View>
           </View>
 
+          {/* Language Selector */}
+          <View style={styles.languageContainer}>
+            <View style={styles.languageSelector}>
+              <Chip
+                mode={currentLanguage === 'en' ? 'flat' : 'outlined'}
+                onPress={() => handleLanguageChange('en')}
+                style={[
+                  styles.languageChip,
+                  currentLanguage === 'en' && { backgroundColor: theme.colors.primary }
+                ]}
+                textStyle={[
+                  styles.languageChipText,
+                  { color: currentLanguage === 'en' ? 'white' : theme.colors.onSurface }
+                ]}
+              >
+                EN
+              </Chip>
+              <Chip
+                mode={currentLanguage === 'fr' ? 'flat' : 'outlined'}
+                onPress={() => handleLanguageChange('fr')}
+                style={[
+                  styles.languageChip,
+                  currentLanguage === 'fr' && { backgroundColor: theme.colors.primary }
+                ]}
+                textStyle={[
+                  styles.languageChipText,
+                  { color: currentLanguage === 'fr' ? 'white' : theme.colors.onSurface }
+                ]}
+              >
+                FR
+              </Chip>
+            </View>
+          </View>
+
           {/* Search Bar */}
           <Surface style={[styles.searchContainer, { backgroundColor: theme.colors.surface }]} elevation={1}>
             <Searchbar
@@ -363,7 +432,7 @@ export default function NewLawViewerScreen({ route, navigation }) {
               {articles.length === 0 && (
                 <TouchableOpacity style={styles.retryButton} onPress={loadArticles}>
                   <Text style={[styles.retryText, { color: theme.colors.primary }]}>
-                    Retry
+                    {content.retry}
                   </Text>
                 </TouchableOpacity>
               )}
@@ -543,5 +612,22 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     borderTopWidth: 1,
     borderTopColor: '#f0f0f0',
+  },
+  languageContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  languageSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  languageChip: {
+    marginRight: 8,
+  },
+  languageChipText: {
+    fontSize: 14,
+    fontWeight: '500',
   },
 }); 
