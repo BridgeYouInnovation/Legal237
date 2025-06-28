@@ -197,11 +197,32 @@ class DirectPaymentService {
         await this.storeTransactionLocally(transactionId, {
           ...paymentData,
           documentType,
-          status: result.action === 'REQUIRE_OTP' ? 'awaiting_otp' : 'processing',
+          status: result.action === 'REQUIRE_OTP' ? 'awaiting_otp' : 'pending',
           mycoolpay_transaction_ref: result.transaction_ref,
           action: result.action,
           ussd: result.ussd,
           created_at: new Date().toISOString()
+        });
+
+        // 🆕 Get user ID and cancel any pending transactions for this document
+        const { supabase } = require('../lib/supabase');
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        
+        if (!userError && user) {
+          // Cancel any existing pending transactions for this user and document
+          await this.cancelPendingTransactions(user.id, documentType, transactionId);
+        }
+
+        // 🆕 Save transaction to database immediately with PENDING status
+        await this.saveTransactionToDatabase({
+          transactionId,
+          documentType,
+          customerInfo,
+          paymentData,
+          mycoolpayRef: result.transaction_ref,
+          status: 'pending', // Start with pending status
+          action: result.action,
+          ussd: result.ussd
         });
 
         return {
@@ -212,7 +233,7 @@ class DirectPaymentService {
           mycoolpay_ref: result.transaction_ref,
           action: result.action,
           ussd: result.ussd,
-          status: result.action === 'REQUIRE_OTP' ? 'awaiting_otp' : 'processing'
+          status: result.action === 'REQUIRE_OTP' ? 'awaiting_otp' : 'pending'
         };
       } else {
         throw new Error(result.message || 'Payment initialization failed');
@@ -344,6 +365,39 @@ class DirectPaymentService {
         return { success: false, error: 'Transaction or My-CoolPay reference not found' };
       }
 
+      // Check if transaction has been pending too long (15 minutes timeout)
+      const createdAt = new Date(transaction.created_at);
+      const now = new Date();
+      const timeoutMinutes = 15;
+      const timeDiff = (now - createdAt) / (1000 * 60); // difference in minutes
+
+      if (timeDiff > timeoutMinutes && (transaction.status === 'pending' || transaction.status === 'awaiting_otp')) {
+        console.log(`⏰ Transaction ${transactionId} has timed out after ${timeoutMinutes} minutes`);
+        
+        // Update local status
+        await this.updateLocalTransaction(transactionId, {
+          status: 'failed',
+          failure_reason: 'Transaction timeout - user did not complete payment',
+          failed_at: new Date().toISOString()
+        });
+
+        // Update database status
+        await this.updateTransactionStatusInDatabase(transactionId, 'failed', {
+          failed_at: new Date().toISOString(),
+          failure_reason: 'Transaction timeout - user did not complete payment within 15 minutes'
+        });
+
+        return {
+          success: true,
+          status: 'failed',
+          transaction_id: transactionId,
+          amount: transaction.transaction_amount,
+          currency: transaction.transaction_currency,
+          document_type: transaction.documentType,
+          failure_reason: 'Transaction timeout'
+        };
+      }
+
       // Check with My-CoolPay status API using correct endpoint
       const statusUrl = `${this.baseUrl}/${this.publicKey}/checkStatus/${transaction.mycoolpay_transaction_ref}`;
       console.log('Checking status at URL:', statusUrl);
@@ -374,17 +428,39 @@ class DirectPaymentService {
           mycoolpay_status_response: response.data
         });
 
-        // Map My-CoolPay status to our app status
+        // Map My-CoolPay status to our app status and update database
         let appStatus = transactionStatus;
         if (transactionStatus === 'SUCCESS') {
           appStatus = 'completed';
-          console.log('Payment completed successfully! Marking document as purchased...');
+          console.log('✅ Payment completed successfully! Marking document as purchased...');
+          
           // Mark document as purchased when payment is successful
           await this.markDocumentAsPurchased(transaction.documentType);
+          
+          // Update database status to completed
+          await this.updateTransactionStatusInDatabase(transactionId, 'completed', {
+            paid_at: new Date().toISOString(),
+            completed_at: new Date().toISOString()
+          });
+          
         } else if (transactionStatus === 'FAILED' || transactionStatus === 'CANCELED') {
           appStatus = 'failed';
+          console.log('❌ Payment failed or cancelled');
+          
+          // Update database status to failed
+          await this.updateTransactionStatusInDatabase(transactionId, 'failed', {
+            failed_at: new Date().toISOString(),
+            failure_reason: transactionStatus === 'CANCELED' ? 'User cancelled payment' : 'Payment failed'
+          });
+          
         } else if (transactionStatus === 'PENDING') {
-          appStatus = 'processing';
+          appStatus = 'pending';
+          console.log('⏳ Payment still pending - user needs to enter PIN code');
+          
+          // Update database status to pending (in case it was different before)
+          await this.updateTransactionStatusInDatabase(transactionId, 'pending', {
+            last_check_at: new Date().toISOString()
+          });
         }
 
         return {
@@ -756,6 +832,132 @@ class DirectPaymentService {
       return { success: false, error: error.message };
     }
   }
+
+  async saveTransactionToDatabase({ transactionId, documentType, customerInfo, paymentData, mycoolpayRef, status, action, ussd }) {
+    try {
+      // Import supabase here to avoid circular dependencies
+      const { supabase } = require('../lib/supabase');
+      
+      // Get current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        console.log('No authenticated user, skipping database save');
+        return;
+      }
+
+      // Create new payment record
+      const paymentRecord = {
+        user_id: user.id,
+        document_type: documentType,
+        amount: paymentData.transaction_amount,
+        currency: paymentData.transaction_currency,
+        status: status,
+        payment_method: 'mobile_money',
+        transaction_id: transactionId,
+        mycoolpay_ref: mycoolpayRef,
+        action: action,
+        ussd: ussd,
+        created_at: new Date().toISOString()
+      };
+
+      const { error } = await supabase
+        .from('payment_records')
+        .insert([paymentRecord]);
+
+      if (error) {
+        console.error('Error saving payment to database:', error);
+      } else {
+        console.log('Payment record saved to database successfully');
+      }
+         } catch (error) {
+       console.error('Error accessing database for payment save:', error);
+     }
+   }
+
+   // Update transaction status in database
+   async updateTransactionStatusInDatabase(transactionId, status, additionalData = {}) {
+     try {
+       const { supabase } = require('../lib/supabase');
+       
+       const updateData = {
+         status: status,
+         updated_at: new Date().toISOString(),
+         ...additionalData
+       };
+
+       console.log(`📊 Updating database: ${transactionId} -> ${status}`);
+
+       const { error } = await supabase
+         .from('payment_records')
+         .update(updateData)
+         .eq('transaction_id', transactionId);
+
+       if (error) {
+         console.error('❌ Error updating transaction status in database:', error);
+       } else {
+         console.log(`✅ Transaction ${transactionId} updated to ${status} in database`);
+       }
+     } catch (error) {
+       console.error('❌ Error accessing database for status update:', error);
+     }
+   }
+
+   // Check if user has pending transactions (to prevent multiple payments)
+   async checkPendingTransactions(userId, documentType) {
+     try {
+       const { supabase } = require('../lib/supabase');
+       
+       const { data: pendingTransactions, error } = await supabase
+         .from('payment_records')
+         .select('transaction_id, mycoolpay_ref, created_at')
+         .eq('user_id', userId)
+         .eq('document_type', documentType)
+         .eq('status', 'pending')
+         .order('created_at', { ascending: false });
+
+       if (error) {
+         console.error('Error checking pending transactions:', error);
+         return [];
+       }
+
+       return pendingTransactions || [];
+     } catch (error) {
+       console.error('Error accessing database for pending check:', error);
+       return [];
+     }
+   }
+
+   // Cancel pending transactions for same user and document
+   async cancelPendingTransactions(userId, documentType, excludeTransactionId = null) {
+     try {
+       const { supabase } = require('../lib/supabase');
+       
+       let query = supabase
+         .from('payment_records')
+         .update({ 
+           status: 'cancelled',
+           cancelled_at: new Date().toISOString(),
+           cancellation_reason: 'New payment initiated for same document'
+         })
+         .eq('user_id', userId)
+         .eq('document_type', documentType)
+         .eq('status', 'pending');
+
+       if (excludeTransactionId) {
+         query = query.neq('transaction_id', excludeTransactionId);
+       }
+
+       const { error } = await query;
+
+       if (error) {
+         console.error('Error cancelling pending transactions:', error);
+       } else {
+         console.log(`✅ Cancelled pending transactions for user ${userId} and document ${documentType}`);
+       }
+     } catch (error) {
+       console.error('Error accessing database for cancellation:', error);
+     }
+   }
 }
 
 export default new DirectPaymentService(); 
