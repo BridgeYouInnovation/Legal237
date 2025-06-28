@@ -14,7 +14,12 @@ import {
   IconButton,
   Menu,
   MenuItem,
-
+  Drawer,
+  List,
+  ListItem,
+  ListItemText,
+  useMediaQuery,
+  useTheme,
   alpha,
 } from '@mui/material';
 import {
@@ -27,17 +32,18 @@ import {
   Android,
   Language as LanguageIcon,
   Security,
-
+  Menu as MenuIcon,
+  Close as CloseIcon,
   ArrowForward,
-
-
-
 } from '@mui/icons-material';
 
 const LandingPage: React.FC = () => {
   const [language, setLanguage] = useState<'en' | 'fr'>('en');
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   const handleLanguageClick = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -50,6 +56,10 @@ const LandingPage: React.FC = () => {
   const handleLanguageSelect = (lang: 'en' | 'fr') => {
     setLanguage(lang);
     setAnchorEl(null);
+  };
+
+  const handleMobileMenuToggle = () => {
+    setMobileMenuOpen(!mobileMenuOpen);
   };
 
   const content = {
@@ -191,6 +201,13 @@ const LandingPage: React.FC = () => {
 
   const currentContent = content[language];
 
+  const navigationItems = [
+    { label: currentContent.nav.home, href: '/', active: true },
+    { label: currentContent.nav.contact, href: '/contact', active: false },
+    { label: currentContent.nav.forLawyers, href: '/lawyer-application', active: false },
+    { label: currentContent.nav.privacy, href: '/privacy-policy', active: false },
+  ];
+
   const features = [
     { icon: <MenuBook sx={{ fontSize: 48, color: '#fff' }} />, ...currentContent.features.items[0] },
     { icon: <Search sx={{ fontSize: 48, color: '#fff' }} />, ...currentContent.features.items[1] },
@@ -199,6 +216,61 @@ const LandingPage: React.FC = () => {
     { icon: <PhoneAndroid sx={{ fontSize: 48, color: '#fff' }} />, ...currentContent.features.items[4] },
     { icon: <Security sx={{ fontSize: 48, color: '#fff' }} />, ...currentContent.features.items[5] },
   ];
+
+  const MobileMenu = () => (
+    <Drawer
+      anchor="right"
+      open={mobileMenuOpen}
+      onClose={handleMobileMenuToggle}
+      sx={{
+        '& .MuiDrawer-paper': {
+          width: 280,
+          bgcolor: '#f8fafc',
+        },
+      }}
+    >
+      <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Typography variant="h6" sx={{ color: '#2E7D32', fontWeight: 700 }}>
+          Menu
+        </Typography>
+        <IconButton onClick={handleMobileMenuToggle}>
+          <CloseIcon />
+        </IconButton>
+      </Box>
+      <List>
+        {navigationItems.map((item) => (
+          <ListItem key={item.href}>
+            <Link
+              href={item.href}
+              sx={{
+                color: item.active ? '#2E7D32' : '#666',
+                textDecoration: 'none',
+                fontWeight: item.active ? 600 : 500,
+                width: '100%',
+                py: 1,
+                '&:hover': { color: '#2E7D32' }
+              }}
+              onClick={handleMobileMenuToggle}
+            >
+              <ListItemText primary={item.label} />
+            </Link>
+          </ListItem>
+        ))}
+        <ListItem>
+          <IconButton
+            onClick={handleLanguageClick}
+            sx={{
+              bgcolor: alpha('#2E7D32', 0.1),
+              color: '#2E7D32',
+              '&:hover': { bgcolor: alpha('#2E7D32', 0.2) }
+            }}
+          >
+            <LanguageIcon />
+          </IconButton>
+        </ListItem>
+      </List>
+    </Drawer>
+  );
 
   const stats = [
     { number: '6+', label: currentContent.stats.legalCodes },
@@ -250,90 +322,94 @@ const LandingPage: React.FC = () => {
                 Legal237
               </Typography>
             </Box>
-            <Box sx={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-              <Link 
-                href="/" 
-                sx={{ 
-                  color: '#2E7D32', 
-                  textDecoration: 'none', 
-                  fontWeight: 600,
-                  fontSize: '1rem',
-                  '&:hover': { color: '#1B5E20' }
-                }}
-              >
-                {currentContent.nav.home}
-              </Link>
-              <Link 
-                href="/contact" 
-                sx={{ 
-                  color: '#666', 
-                  textDecoration: 'none', 
-                  fontWeight: 500,
-                  fontSize: '1rem',
-                  '&:hover': { color: '#2E7D32' }
-                }}
-              >
-                {currentContent.nav.contact}
-              </Link>
-              <Link 
-                href="/lawyer-application" 
-                sx={{ 
-                  color: '#666', 
-                  textDecoration: 'none', 
-                  fontWeight: 500,
-                  fontSize: '1rem',
-                  '&:hover': { color: '#2E7D32' }
-                }}
-              >
-                {currentContent.nav.forLawyers}
-              </Link>
-              <Link 
-                href="/privacy-policy" 
-                sx={{ 
-                  color: '#666', 
-                  textDecoration: 'none', 
-                  fontWeight: 500,
-                  fontSize: '1rem',
-                  '&:hover': { color: '#2E7D32' }
-                }}
-              >
-                {currentContent.nav.privacy}
-              </Link>
-              
-              {/* Language Switcher */}
+            {/* Desktop Navigation */}
+            {!isMobile && (
+              <Box sx={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                {navigationItems.map((item) => (
+                  <Link 
+                    key={item.href}
+                    href={item.href} 
+                    sx={{ 
+                      color: item.active ? '#2E7D32' : '#666', 
+                      textDecoration: 'none', 
+                      fontWeight: item.active ? 600 : 500,
+                      fontSize: '1rem',
+                      '&:hover': { color: '#2E7D32' }
+                    }}
+                  >
+                    {item.label}
+                  </Link>
+                ))}
+                
+                {/* Language Switcher */}
+                <IconButton
+                  onClick={handleLanguageClick}
+                  sx={{
+                    bgcolor: alpha('#2E7D32', 0.1),
+                    color: '#2E7D32',
+                    '&:hover': { bgcolor: alpha('#2E7D32', 0.2) }
+                  }}
+                >
+                  <LanguageIcon />
+                </IconButton>
+                <Menu
+                  anchorEl={anchorEl}
+                  open={Boolean(anchorEl)}
+                  onClose={handleLanguageClose}
+                  sx={{ mt: 1 }}
+                >
+                  <MenuItem 
+                    onClick={() => handleLanguageSelect('en')}
+                    selected={language === 'en'}
+                  >
+                    🇺🇸 English
+                  </MenuItem>
+                  <MenuItem 
+                    onClick={() => handleLanguageSelect('fr')}
+                    selected={language === 'fr'}
+                  >
+                    🇫🇷 Français
+                  </MenuItem>
+                </Menu>
+              </Box>
+            )}
+
+            {/* Mobile Menu Button */}
+            {isMobile && (
               <IconButton
-                onClick={handleLanguageClick}
-                sx={{
-                  bgcolor: alpha('#2E7D32', 0.1),
-                  color: '#2E7D32',
-                  '&:hover': { bgcolor: alpha('#2E7D32', 0.2) }
-                }}
+                onClick={handleMobileMenuToggle}
+                sx={{ color: '#2E7D32' }}
               >
-                <LanguageIcon />
+                <MenuIcon />
               </IconButton>
-              <Menu
-                anchorEl={anchorEl}
-                open={Boolean(anchorEl)}
-                onClose={handleLanguageClose}
-                sx={{ mt: 1 }}
-              >
-                <MenuItem 
-                  onClick={() => handleLanguageSelect('en')}
-                  selected={language === 'en'}
-                >
-                  🇺🇸 English
-                </MenuItem>
-                <MenuItem 
-                  onClick={() => handleLanguageSelect('fr')}
-                  selected={language === 'fr'}
-                >
-                  🇫🇷 Français
-                </MenuItem>
-              </Menu>
-            </Box>
+            )}
           </Toolbar>
         </Container>
       </AppBar>
+
+      {/* Mobile Menu */}
+      <MobileMenu />
+
+      {/* Language Menu for Mobile */}
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={handleLanguageClose}
+        sx={{ mt: 1 }}
+      >
+        <MenuItem 
+          onClick={() => handleLanguageSelect('en')}
+          selected={language === 'en'}
+        >
+          🇺🇸 English
+        </MenuItem>
+        <MenuItem 
+          onClick={() => handleLanguageSelect('fr')}
+          selected={language === 'fr'}
+        >
+          🇫🇷 Français
+        </MenuItem>
+      </Menu>
 
       {/* Hero Section */}
       <Box 

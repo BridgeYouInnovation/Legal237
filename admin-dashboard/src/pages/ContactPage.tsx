@@ -15,6 +15,13 @@ import {
   Menu,
   MenuItem,
   alpha,
+  Drawer,
+  List,
+  ListItem,
+  ListItemText,
+  useMediaQuery,
+  useTheme,
+  CircularProgress,
 } from '@mui/material';
 import {
   Gavel,
@@ -22,6 +29,8 @@ import {
   Phone,
   LocationOn,
   Language as LanguageIcon,
+  Menu as MenuIcon,
+  Close as CloseIcon,
 } from '@mui/icons-material';
 
 const ContactPage: React.FC = () => {
@@ -32,8 +41,14 @@ const ContactPage: React.FC = () => {
     message: '',
   });
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const [language, setLanguage] = useState<'en' | 'fr'>('en');
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   const handleLanguageClick = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -46,6 +61,10 @@ const ContactPage: React.FC = () => {
   const handleLanguageSelect = (lang: 'en' | 'fr') => {
     setLanguage(lang);
     setAnchorEl(null);
+  };
+
+  const handleMobileMenuToggle = () => {
+    setMobileMenuOpen(!mobileMenuOpen);
   };
 
   const content = {
@@ -82,7 +101,9 @@ const ContactPage: React.FC = () => {
         subject: 'Subject',
         message: 'Message',
         submit: 'Send Message',
+        sending: 'Sending...',
         success: 'Thank you for your message! We\'ll get back to you soon.',
+        error: 'Failed to send message. Please try again.',
       }
     },
     fr: {
@@ -118,30 +139,112 @@ const ContactPage: React.FC = () => {
         subject: 'Sujet',
         message: 'Message',
         submit: 'Envoyer le Message',
+        sending: 'Envoi en cours...',
         success: 'Merci pour votre message! Nous vous répondrons bientôt.',
+        error: 'Échec de l\'envoi du message. Veuillez réessayer.',
       }
     }
   };
 
   const currentContent = content[language];
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value,
-    }));
+  const handleChange = (field: string) => (event: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({ ...formData, [field]: event.target.value });
+    setError(''); // Clear error when user types
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log('Form submitted:', formData);
-    setSubmitted(true);
-    setTimeout(() => {
-      setSubmitted(false);
-      setFormData({ name: '', email: '', subject: '', message: '' });
-    }, 3000);
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      const response = await fetch('/.netlify/functions/send-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          type: 'contact',
+          data: formData
+        })
+      });
+
+      if (response.ok) {
+        setSubmitted(true);
+        setFormData({ name: '', email: '', subject: '', message: '' });
+      } else {
+        const errorData = await response.json();
+        setError(errorData.error || currentContent.form.error);
+      }
+    } catch (err) {
+      setError(currentContent.form.error);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const navigationItems = [
+    { label: currentContent.nav.home, href: '/', active: false },
+    { label: currentContent.nav.contact, href: '/contact', active: true },
+    { label: currentContent.nav.forLawyers, href: '/lawyer-application', active: false },
+    { label: currentContent.nav.privacy, href: '/privacy-policy', active: false },
+  ];
+
+  const MobileMenu = () => (
+    <Drawer
+      anchor="right"
+      open={mobileMenuOpen}
+      onClose={handleMobileMenuToggle}
+      sx={{
+        '& .MuiDrawer-paper': {
+          width: 280,
+          bgcolor: '#f8fafc',
+        },
+      }}
+    >
+      <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Typography variant="h6" sx={{ color: '#2E7D32', fontWeight: 700 }}>
+          Menu
+        </Typography>
+        <IconButton onClick={handleMobileMenuToggle}>
+          <CloseIcon />
+        </IconButton>
+      </Box>
+      <List>
+        {navigationItems.map((item) => (
+          <ListItem key={item.href}>
+            <Link
+              href={item.href}
+              sx={{
+                color: item.active ? '#2E7D32' : '#666',
+                textDecoration: 'none',
+                fontWeight: item.active ? 600 : 500,
+                width: '100%',
+                py: 1,
+                '&:hover': { color: '#2E7D32' }
+              }}
+              onClick={handleMobileMenuToggle}
+            >
+              <ListItemText primary={item.label} />
+            </Link>
+          </ListItem>
+        ))}
+        <ListItem>
+          <IconButton
+            onClick={handleLanguageClick}
+            sx={{
+              bgcolor: alpha('#2E7D32', 0.1),
+              color: '#2E7D32',
+              '&:hover': { bgcolor: alpha('#2E7D32', 0.2) }
+            }}
+          >
+            <LanguageIcon />
+          </IconButton>
+        </ListItem>
+      </List>
+    </Drawer>
+  );
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: '#f8fafc' }}>
@@ -185,97 +288,102 @@ const ContactPage: React.FC = () => {
                 Legal237
               </Typography>
             </Box>
-            <Box sx={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-              <Link 
-                href="/" 
-                sx={{ 
-                  color: '#666', 
-                  textDecoration: 'none', 
-                  fontWeight: 500,
-                  fontSize: '1rem',
-                  '&:hover': { color: '#2E7D32' }
-                }}
-              >
-                {currentContent.nav.home}
-              </Link>
-              <Link 
-                href="/contact" 
-                sx={{ 
-                  color: '#2E7D32', 
-                  textDecoration: 'none', 
-                  fontWeight: 600,
-                  fontSize: '1rem',
-                  '&:hover': { color: '#1B5E20' }
-                }}
-              >
-                {currentContent.nav.contact}
-              </Link>
-              <Link 
-                href="/lawyer-application" 
-                sx={{ 
-                  color: '#666', 
-                  textDecoration: 'none', 
-                  fontWeight: 500,
-                  fontSize: '1rem',
-                  '&:hover': { color: '#2E7D32' }
-                }}
-              >
-                {currentContent.nav.forLawyers}
-              </Link>
-              <Link 
-                href="/privacy-policy" 
-                sx={{ 
-                  color: '#666', 
-                  textDecoration: 'none', 
-                  fontWeight: 500,
-                  fontSize: '1rem',
-                  '&:hover': { color: '#2E7D32' }
-                }}
-              >
-                {currentContent.nav.privacy}
-              </Link>
-              
-              {/* Language Switcher */}
+
+            {/* Desktop Navigation */}
+            {!isMobile && (
+              <Box sx={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                {navigationItems.map((item) => (
+                  <Link 
+                    key={item.href}
+                    href={item.href} 
+                    sx={{ 
+                      color: item.active ? '#2E7D32' : '#666', 
+                      textDecoration: 'none', 
+                      fontWeight: item.active ? 600 : 500,
+                      fontSize: '1rem',
+                      '&:hover': { color: '#2E7D32' }
+                    }}
+                  >
+                    {item.label}
+                  </Link>
+                ))}
+                
+                {/* Language Switcher */}
+                <IconButton
+                  onClick={handleLanguageClick}
+                  sx={{
+                    bgcolor: alpha('#2E7D32', 0.1),
+                    color: '#2E7D32',
+                    '&:hover': { bgcolor: alpha('#2E7D32', 0.2) }
+                  }}
+                >
+                  <LanguageIcon />
+                </IconButton>
+                <Menu
+                  anchorEl={anchorEl}
+                  open={Boolean(anchorEl)}
+                  onClose={handleLanguageClose}
+                  sx={{ mt: 1 }}
+                >
+                  <MenuItem 
+                    onClick={() => handleLanguageSelect('en')}
+                    selected={language === 'en'}
+                  >
+                    🇺🇸 English
+                  </MenuItem>
+                  <MenuItem 
+                    onClick={() => handleLanguageSelect('fr')}
+                    selected={language === 'fr'}
+                  >
+                    🇫🇷 Français
+                  </MenuItem>
+                </Menu>
+              </Box>
+            )}
+
+            {/* Mobile Menu Button */}
+            {isMobile && (
               <IconButton
-                onClick={handleLanguageClick}
-                sx={{
-                  bgcolor: alpha('#2E7D32', 0.1),
-                  color: '#2E7D32',
-                  '&:hover': { bgcolor: alpha('#2E7D32', 0.2) }
-                }}
+                onClick={handleMobileMenuToggle}
+                sx={{ color: '#2E7D32' }}
               >
-                <LanguageIcon />
+                <MenuIcon />
               </IconButton>
-              <Menu
-                anchorEl={anchorEl}
-                open={Boolean(anchorEl)}
-                onClose={handleLanguageClose}
-                sx={{ mt: 1 }}
-              >
-                <MenuItem 
-                  onClick={() => handleLanguageSelect('en')}
-                  selected={language === 'en'}
-                >
-                  🇺🇸 English
-                </MenuItem>
-                <MenuItem 
-                  onClick={() => handleLanguageSelect('fr')}
-                  selected={language === 'fr'}
-                >
-                  🇫🇷 Français
-                </MenuItem>
-              </Menu>
-            </Box>
+            )}
           </Toolbar>
         </Container>
       </AppBar>
+
+      {/* Mobile Menu */}
+      <MobileMenu />
+
+      {/* Language Menu for Mobile */}
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={handleLanguageClose}
+        sx={{ mt: 1 }}
+      >
+        <MenuItem 
+          onClick={() => handleLanguageSelect('en')}
+          selected={language === 'en'}
+        >
+          🇺🇸 English
+        </MenuItem>
+        <MenuItem 
+          onClick={() => handleLanguageSelect('fr')}
+          selected={language === 'fr'}
+        >
+          🇫🇷 Français
+        </MenuItem>
+      </Menu>
 
       {/* Header */}
       <Box 
         sx={{ 
           background: 'linear-gradient(135deg, #1B5E20 0%, #2E7D32 50%, #4CAF50 100%)',
           color: 'white', 
-          py: 8,
+          py: { xs: 6, md: 8 },
           position: 'relative',
           overflow: 'hidden',
           '&::before': {
@@ -296,7 +404,7 @@ const ContactPage: React.FC = () => {
               sx={{ 
                 fontWeight: 900, 
                 mb: 3, 
-                fontSize: { xs: '2.5rem', md: '3.5rem' },
+                fontSize: { xs: '2rem', sm: '2.5rem', md: '3.5rem' },
                 textShadow: '0 4px 20px rgba(0,0,0,0.3)',
               }}
             >
@@ -309,7 +417,9 @@ const ContactPage: React.FC = () => {
                 fontWeight: 400,
                 maxWidth: '600px',
                 mx: 'auto',
-                lineHeight: 1.6
+                lineHeight: 1.6,
+                fontSize: { xs: '1rem', md: '1.25rem' },
+                px: { xs: 2, md: 0 }
               }}
             >
               {currentContent.subtitle}
@@ -318,26 +428,32 @@ const ContactPage: React.FC = () => {
         </Container>
       </Box>
 
-      <Container maxWidth="lg" sx={{ py: 8, mt: -4, position: 'relative', zIndex: 2 }}>
+      <Container maxWidth="lg" sx={{ py: { xs: 6, md: 8 }, mt: { xs: -2, md: -4 }, position: 'relative', zIndex: 2 }}>
         {/* Contact Info Cards */}
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 4, mb: 8, justifyContent: 'center' }}>
+        <Box sx={{ 
+          display: 'flex', 
+          flexDirection: { xs: 'column', md: 'row' },
+          gap: { xs: 3, md: 4 }, 
+          mb: { xs: 6, md: 8 }, 
+          justifyContent: 'center' 
+        }}>
           <Card
             elevation={8}
             sx={{
-              minWidth: 300,
+              minWidth: { xs: '100%', md: 300 },
               flex: '1 1 300px',
-              maxWidth: 350,
+              maxWidth: { xs: '100%', md: 350 },
               borderRadius: 4,
               background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
               border: '1px solid rgba(46, 125, 50, 0.1)',
               transition: 'all 0.3s ease',
               '&:hover': { 
-                transform: 'translateY(-8px)',
+                transform: { xs: 'none', md: 'translateY(-8px)' },
                 boxShadow: '0 20px 40px rgba(0,0,0,0.15)',
               }
             }}
           >
-            <CardContent sx={{ p: 4, textAlign: 'center' }}>
+            <CardContent sx={{ p: { xs: 3, md: 4 }, textAlign: 'center' }}>
               <Box 
                 sx={{ 
                   mb: 3,
@@ -349,15 +465,15 @@ const ContactPage: React.FC = () => {
                   justifyContent: 'center',
                 }}
               >
-                <Email sx={{ fontSize: 32, color: 'white' }} />
+                <Email sx={{ fontSize: { xs: 28, md: 32 }, color: 'white' }} />
               </Box>
-              <Typography variant="h5" sx={{ mb: 2, fontWeight: 700, color: '#2E7D32' }}>
+              <Typography variant="h5" sx={{ mb: 2, fontWeight: 700, color: '#2E7D32', fontSize: { xs: '1.25rem', md: '1.5rem' } }}>
                 {currentContent.contactInfo.email.title}
               </Typography>
-              <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+              <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, fontSize: { xs: '1rem', md: '1.25rem' } }}>
                 {currentContent.contactInfo.email.value}
               </Typography>
-              <Typography variant="body1" sx={{ color: '#666', lineHeight: 1.6 }}>
+              <Typography variant="body1" sx={{ color: '#666', lineHeight: 1.6, fontSize: { xs: '0.875rem', md: '1rem' } }}>
                 {currentContent.contactInfo.email.description}
               </Typography>
             </CardContent>
@@ -366,20 +482,20 @@ const ContactPage: React.FC = () => {
           <Card
             elevation={8}
             sx={{
-              minWidth: 300,
+              minWidth: { xs: '100%', md: 300 },
               flex: '1 1 300px',
-              maxWidth: 350,
+              maxWidth: { xs: '100%', md: 350 },
               borderRadius: 4,
               background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
               border: '1px solid rgba(46, 125, 50, 0.1)',
               transition: 'all 0.3s ease',
               '&:hover': { 
-                transform: 'translateY(-8px)',
+                transform: { xs: 'none', md: 'translateY(-8px)' },
                 boxShadow: '0 20px 40px rgba(0,0,0,0.15)',
               }
             }}
           >
-            <CardContent sx={{ p: 4, textAlign: 'center' }}>
+            <CardContent sx={{ p: { xs: 3, md: 4 }, textAlign: 'center' }}>
               <Box 
                 sx={{ 
                   mb: 3,
@@ -391,15 +507,15 @@ const ContactPage: React.FC = () => {
                   justifyContent: 'center',
                 }}
               >
-                <Phone sx={{ fontSize: 32, color: 'white' }} />
+                <Phone sx={{ fontSize: { xs: 28, md: 32 }, color: 'white' }} />
               </Box>
-              <Typography variant="h5" sx={{ mb: 2, fontWeight: 700, color: '#2E7D32' }}>
+              <Typography variant="h5" sx={{ mb: 2, fontWeight: 700, color: '#2E7D32', fontSize: { xs: '1.25rem', md: '1.5rem' } }}>
                 {currentContent.contactInfo.phone.title}
               </Typography>
-              <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+              <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, fontSize: { xs: '1rem', md: '1.25rem' } }}>
                 {currentContent.contactInfo.phone.value}
               </Typography>
-              <Typography variant="body1" sx={{ color: '#666', lineHeight: 1.6 }}>
+              <Typography variant="body1" sx={{ color: '#666', lineHeight: 1.6, fontSize: { xs: '0.875rem', md: '1rem' } }}>
                 {currentContent.contactInfo.phone.description}
               </Typography>
             </CardContent>
@@ -408,20 +524,20 @@ const ContactPage: React.FC = () => {
           <Card
             elevation={8}
             sx={{
-              minWidth: 300,
+              minWidth: { xs: '100%', md: 300 },
               flex: '1 1 300px',
-              maxWidth: 350,
+              maxWidth: { xs: '100%', md: 350 },
               borderRadius: 4,
               background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
               border: '1px solid rgba(46, 125, 50, 0.1)',
               transition: 'all 0.3s ease',
               '&:hover': { 
-                transform: 'translateY(-8px)',
+                transform: { xs: 'none', md: 'translateY(-8px)' },
                 boxShadow: '0 20px 40px rgba(0,0,0,0.15)',
               }
             }}
           >
-            <CardContent sx={{ p: 4, textAlign: 'center' }}>
+            <CardContent sx={{ p: { xs: 3, md: 4 }, textAlign: 'center' }}>
               <Box 
                 sx={{ 
                   mb: 3,
@@ -433,15 +549,15 @@ const ContactPage: React.FC = () => {
                   justifyContent: 'center',
                 }}
               >
-                <LocationOn sx={{ fontSize: 32, color: 'white' }} />
+                <LocationOn sx={{ fontSize: { xs: 28, md: 32 }, color: 'white' }} />
               </Box>
-              <Typography variant="h5" sx={{ mb: 2, fontWeight: 700, color: '#2E7D32' }}>
+              <Typography variant="h5" sx={{ mb: 2, fontWeight: 700, color: '#2E7D32', fontSize: { xs: '1.25rem', md: '1.5rem' } }}>
                 {currentContent.contactInfo.location.title}
               </Typography>
-              <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+              <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, fontSize: { xs: '1rem', md: '1.25rem' } }}>
                 {currentContent.contactInfo.location.value}
               </Typography>
-              <Typography variant="body1" sx={{ color: '#666', lineHeight: 1.6 }}>
+              <Typography variant="body1" sx={{ color: '#666', lineHeight: 1.6, fontSize: { xs: '0.875rem', md: '1rem' } }}>
                 {currentContent.contactInfo.location.description}
               </Typography>
             </CardContent>
@@ -455,15 +571,15 @@ const ContactPage: React.FC = () => {
               sx={{ 
                 background: 'linear-gradient(135deg, #2E7D32 0%, #1B5E20 100%)',
                 color: 'white',
-                p: 4,
+                p: { xs: 3, md: 4 },
                 textAlign: 'center'
               }}
             >
-              <Typography variant="h4" sx={{ fontWeight: 700 }}>
+              <Typography variant="h4" sx={{ fontWeight: 700, fontSize: { xs: '1.5rem', md: '2rem' } }}>
                 {currentContent.form.title}
               </Typography>
             </Box>
-            <CardContent sx={{ p: 6 }}>
+            <CardContent sx={{ p: { xs: 4, md: 6 } }}>
               {submitted ? (
                 <Alert 
                   severity="success" 
@@ -476,62 +592,69 @@ const ContactPage: React.FC = () => {
                   {currentContent.form.success}
                 </Alert>
               ) : (
-                <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                  <Box sx={{ display: 'flex', gap: 2 }}>
+                <Box component="form" onSubmit={handleSubmit}>
+                  {error && (
+                    <Alert severity="error" sx={{ mb: 3 }}>
+                      {error}
+                    </Alert>
+                  )}
+                  
+                  <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 3, mb: 3 }}>
                     <TextField
                       fullWidth
                       label={currentContent.form.name}
-                      name="name"
                       value={formData.name}
-                      onChange={handleInputChange}
+                      onChange={handleChange('name')}
                       required
                       variant="outlined"
                       sx={{ flex: 1 }}
+                      disabled={loading}
                     />
                     <TextField
                       fullWidth
                       label={currentContent.form.email}
-                      name="email"
                       type="email"
                       value={formData.email}
-                      onChange={handleInputChange}
+                      onChange={handleChange('email')}
                       required
                       variant="outlined"
                       sx={{ flex: 1 }}
+                      disabled={loading}
                     />
                   </Box>
                   <TextField
                     fullWidth
                     label={currentContent.form.subject}
-                    name="subject"
                     value={formData.subject}
-                    onChange={handleInputChange}
+                    onChange={handleChange('subject')}
                     required
                     variant="outlined"
                     sx={{ mb: 3 }}
+                    disabled={loading}
                   />
                   <TextField
                     fullWidth
                     label={currentContent.form.message}
                     multiline
                     rows={6}
-                    name="message"
                     value={formData.message}
-                    onChange={handleInputChange}
+                    onChange={handleChange('message')}
                     required
                     variant="outlined"
                     sx={{ mb: 4 }}
+                    disabled={loading}
                   />
                   <Box sx={{ textAlign: 'center' }}>
                     <Button
                       type="submit"
                       variant="contained"
                       size="large"
+                      disabled={loading}
                       sx={{
                         bgcolor: '#2E7D32',
-                        px: 6,
+                        px: { xs: 4, md: 6 },
                         py: 2,
-                        fontSize: '1.1rem',
+                        fontSize: { xs: '1rem', md: '1.1rem' },
                         fontWeight: 700,
                         borderRadius: 3,
                         boxShadow: '0 8px 32px rgba(46, 125, 50, 0.3)',
@@ -540,10 +663,20 @@ const ContactPage: React.FC = () => {
                           transform: 'translateY(-2px)',
                           boxShadow: '0 12px 40px rgba(46, 125, 50, 0.4)',
                         },
+                        '&:disabled': {
+                          bgcolor: '#ccc',
+                        },
                         transition: 'all 0.3s ease',
                       }}
                     >
-                      {currentContent.form.submit}
+                      {loading ? (
+                        <>
+                          <CircularProgress size={20} sx={{ mr: 1, color: 'white' }} />
+                          {currentContent.form.sending}
+                        </>
+                      ) : (
+                        currentContent.form.submit
+                      )}
                     </Button>
                   </Box>
                 </Box>
@@ -552,23 +685,6 @@ const ContactPage: React.FC = () => {
           </Card>
         </Box>
       </Container>
-
-      {/* Footer */}
-      <Box sx={{ bgcolor: '#1a1a1a', color: 'white', py: 6 }}>
-        <Container maxWidth="lg">
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <Gavel sx={{ mr: 1, fontSize: 28 }} />
-              <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                Legal237
-              </Typography>
-            </Box>
-            <Typography variant="body2" sx={{ opacity: 0.6 }}>
-              © 2024 Legal237. All rights reserved.
-            </Typography>
-          </Box>
-        </Container>
-      </Box>
     </Box>
   );
 };

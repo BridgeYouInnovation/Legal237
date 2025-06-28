@@ -3,12 +3,9 @@ import {
   Box,
   Container,
   Typography,
-
   AppBar,
   Toolbar,
   Link,
-
-
   Card,
   CardContent,
   IconButton,
@@ -18,7 +15,6 @@ import {
 } from '@mui/material';
 import {
   Gavel,
-
   Language as LanguageIcon,
 } from '@mui/icons-material';
 

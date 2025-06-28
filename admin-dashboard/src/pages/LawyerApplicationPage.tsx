@@ -17,6 +17,13 @@ import {
   Menu,
   MenuItem,
   alpha,
+  Drawer,
+  List,
+  ListItem,
+  ListItemText,
+  useMediaQuery,
+  useTheme,
+  CircularProgress,
 } from '@mui/material';
 import {
   Gavel,
@@ -25,6 +32,8 @@ import {
   TrendingUp,
   Visibility,
   Language as LanguageIcon,
+  Menu as MenuIcon,
+  Close as CloseIcon,
 } from '@mui/icons-material';
 
 const LawyerApplicationPage: React.FC = () => {
@@ -41,8 +50,14 @@ const LawyerApplicationPage: React.FC = () => {
     acceptTerms: false,
   });
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const [language, setLanguage] = useState<'en' | 'fr'>('en');
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   const handleLanguageClick = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -55,6 +70,10 @@ const LawyerApplicationPage: React.FC = () => {
   const handleLanguageSelect = (lang: 'en' | 'fr') => {
     setLanguage(lang);
     setAnchorEl(null);
+  };
+
+  const handleMobileMenuToggle = () => {
+    setMobileMenuOpen(!mobileMenuOpen);
   };
 
   const content = {
@@ -88,7 +107,9 @@ const LawyerApplicationPage: React.FC = () => {
         experience: 'Years of Experience',
         acceptTerms: 'I accept the terms and conditions and agree to the professional standards of Legal237',
         submit: 'Submit Application',
-        success: 'Thank you for your application! We will review your information and contact you within 3-5 business days.'
+        submitting: 'Submitting...',
+        success: 'Thank you for your application! We will review your information and contact you within 3-5 business days.',
+        error: 'Failed to submit application. Please try again.',
       },
       whyJoin: {
         title: 'Why Join Legal237?',
@@ -139,7 +160,9 @@ const LawyerApplicationPage: React.FC = () => {
         experience: 'Années d\'Expérience',
         acceptTerms: 'J\'accepte les termes et conditions et j\'adhère aux normes professionnelles de Legal237',
         submit: 'Soumettre la Candidature',
-        success: 'Merci pour votre candidature! Nous examinerons vos informations et vous contacterons dans 3-5 jours ouvrables.'
+        submitting: 'Soumission en cours...',
+        success: 'Merci pour votre candidature! Nous examinerons vos informations et vous contacterons dans 3-5 jours ouvrables.',
+        error: 'Échec de la soumission de la candidature. Veuillez réessayer.',
       },
       whyJoin: {
         title: 'Pourquoi Rejoindre Legal237?',
@@ -170,20 +193,108 @@ const LawyerApplicationPage: React.FC = () => {
     } else {
       setFormData({ ...formData, [field]: event.target.value });
     }
+    setError(''); // Clear error when user types
   };
 
-  const handleSubmit = (event: React.FormEvent) => {
+  const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (formData.acceptTerms) {
-      setSubmitted(true);
+    if (!formData.acceptTerms) return;
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const response = await fetch('/.netlify/functions/send-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          type: 'lawyer-application',
+          data: formData
+        })
+      });
+
+      if (response.ok) {
+        setSubmitted(true);
+      } else {
+        const errorData = await response.json();
+        setError(errorData.error || currentContent.form.error);
+      }
+    } catch (err) {
+      setError(currentContent.form.error);
+    } finally {
+      setLoading(false);
     }
   };
+
+  const navigationItems = [
+    { label: currentContent.nav.home, href: '/', active: false },
+    { label: currentContent.nav.contact, href: '/contact', active: false },
+    { label: currentContent.nav.forLawyers, href: '/lawyer-application', active: true },
+    { label: currentContent.nav.privacy, href: '/privacy-policy', active: false },
+  ];
 
   const benefits = [
     { icon: <People sx={{ fontSize: 48, color: '#fff' }} />, ...currentContent.whyJoin.features[0] },
     { icon: <TrendingUp sx={{ fontSize: 48, color: '#fff' }} />, ...currentContent.whyJoin.features[1] },
     { icon: <Visibility sx={{ fontSize: 48, color: '#fff' }} />, ...currentContent.whyJoin.features[2] },
   ];
+
+  const MobileMenu = () => (
+    <Drawer
+      anchor="right"
+      open={mobileMenuOpen}
+      onClose={handleMobileMenuToggle}
+      sx={{
+        '& .MuiDrawer-paper': {
+          width: 280,
+          bgcolor: '#f8fafc',
+        },
+      }}
+    >
+      <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Typography variant="h6" sx={{ color: '#2E7D32', fontWeight: 700 }}>
+          Menu
+        </Typography>
+        <IconButton onClick={handleMobileMenuToggle}>
+          <CloseIcon />
+        </IconButton>
+      </Box>
+      <List>
+        {navigationItems.map((item) => (
+          <ListItem key={item.href}>
+            <Link
+              href={item.href}
+              sx={{
+                color: item.active ? '#2E7D32' : '#666',
+                textDecoration: 'none',
+                fontWeight: item.active ? 600 : 500,
+                width: '100%',
+                py: 1,
+                '&:hover': { color: '#2E7D32' }
+              }}
+              onClick={handleMobileMenuToggle}
+            >
+              <ListItemText primary={item.label} />
+            </Link>
+          </ListItem>
+        ))}
+        <ListItem>
+          <IconButton
+            onClick={handleLanguageClick}
+            sx={{
+              bgcolor: alpha('#2E7D32', 0.1),
+              color: '#2E7D32',
+              '&:hover': { bgcolor: alpha('#2E7D32', 0.2) }
+            }}
+          >
+            <LanguageIcon />
+          </IconButton>
+        </ListItem>
+      </List>
+    </Drawer>
+  );
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: '#f8fafc' }}>
@@ -227,90 +338,95 @@ const LawyerApplicationPage: React.FC = () => {
                 Legal237
               </Typography>
             </Box>
-            <Box sx={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-              <Link 
-                href="/" 
-                sx={{ 
-                  color: '#666', 
-                  textDecoration: 'none', 
-                  fontWeight: 500,
-                  fontSize: '1rem',
-                  '&:hover': { color: '#2E7D32' }
-                }}
-              >
-                {currentContent.nav.home}
-              </Link>
-              <Link 
-                href="/contact" 
-                sx={{ 
-                  color: '#666', 
-                  textDecoration: 'none', 
-                  fontWeight: 500,
-                  fontSize: '1rem',
-                  '&:hover': { color: '#2E7D32' }
-                }}
-              >
-                {currentContent.nav.contact}
-              </Link>
-              <Link 
-                href="/lawyer-application" 
-                sx={{ 
-                  color: '#2E7D32', 
-                  textDecoration: 'none', 
-                  fontWeight: 600,
-                  fontSize: '1rem',
-                  '&:hover': { color: '#1B5E20' }
-                }}
-              >
-                {currentContent.nav.forLawyers}
-              </Link>
-              <Link 
-                href="/privacy-policy" 
-                sx={{ 
-                  color: '#666', 
-                  textDecoration: 'none', 
-                  fontWeight: 500,
-                  fontSize: '1rem',
-                  '&:hover': { color: '#2E7D32' }
-                }}
-              >
-                {currentContent.nav.privacy}
-              </Link>
-              
-              {/* Language Switcher */}
+
+            {/* Desktop Navigation */}
+            {!isMobile && (
+              <Box sx={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                {navigationItems.map((item) => (
+                  <Link 
+                    key={item.href}
+                    href={item.href} 
+                    sx={{ 
+                      color: item.active ? '#2E7D32' : '#666', 
+                      textDecoration: 'none', 
+                      fontWeight: item.active ? 600 : 500,
+                      fontSize: '1rem',
+                      '&:hover': { color: '#2E7D32' }
+                    }}
+                  >
+                    {item.label}
+                  </Link>
+                ))}
+                
+                {/* Language Switcher */}
+                <IconButton
+                  onClick={handleLanguageClick}
+                  sx={{
+                    bgcolor: alpha('#2E7D32', 0.1),
+                    color: '#2E7D32',
+                    '&:hover': { bgcolor: alpha('#2E7D32', 0.2) }
+                  }}
+                >
+                  <LanguageIcon />
+                </IconButton>
+                <Menu
+                  anchorEl={anchorEl}
+                  open={Boolean(anchorEl)}
+                  onClose={handleLanguageClose}
+                  sx={{ mt: 1 }}
+                >
+                  <MenuItem 
+                    onClick={() => handleLanguageSelect('en')}
+                    selected={language === 'en'}
+                  >
+                    🇺🇸 English
+                  </MenuItem>
+                  <MenuItem 
+                    onClick={() => handleLanguageSelect('fr')}
+                    selected={language === 'fr'}
+                  >
+                    🇫🇷 Français
+                  </MenuItem>
+                </Menu>
+              </Box>
+            )}
+
+            {/* Mobile Menu Button */}
+            {isMobile && (
               <IconButton
-                onClick={handleLanguageClick}
-                sx={{
-                  bgcolor: alpha('#2E7D32', 0.1),
-                  color: '#2E7D32',
-                  '&:hover': { bgcolor: alpha('#2E7D32', 0.2) }
-                }}
+                onClick={handleMobileMenuToggle}
+                sx={{ color: '#2E7D32' }}
               >
-                <LanguageIcon />
+                <MenuIcon />
               </IconButton>
-              <Menu
-                anchorEl={anchorEl}
-                open={Boolean(anchorEl)}
-                onClose={handleLanguageClose}
-                sx={{ mt: 1 }}
-              >
-                <MenuItem 
-                  onClick={() => handleLanguageSelect('en')}
-                  selected={language === 'en'}
-                >
-                  🇺🇸 English
-                </MenuItem>
-                <MenuItem 
-                  onClick={() => handleLanguageSelect('fr')}
-                  selected={language === 'fr'}
-                >
-                  🇫🇷 Français
-                </MenuItem>
-              </Menu>
-            </Box>
+            )}
           </Toolbar>
         </Container>
       </AppBar>
+
+      {/* Mobile Menu */}
+      <MobileMenu />
+
+      {/* Language Menu for Mobile */}
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={handleLanguageClose}
+        sx={{ mt: 1 }}
+      >
+        <MenuItem 
+          onClick={() => handleLanguageSelect('en')}
+          selected={language === 'en'}
+        >
+          🇺🇸 English
+        </MenuItem>
+        <MenuItem 
+          onClick={() => handleLanguageSelect('fr')}
+          selected={language === 'fr'}
+        >
+          🇫🇷 Français
+        </MenuItem>
+      </Menu>
 
       {/* Hero Section */}
       <Box 
@@ -338,8 +454,9 @@ const LawyerApplicationPage: React.FC = () => {
               sx={{ 
                 fontWeight: 900, 
                 mb: 3, 
-                fontSize: { xs: '2.5rem', md: '3.5rem' },
+                fontSize: { xs: '2rem', sm: '2.5rem', md: '3.5rem' },
                 textShadow: '0 4px 20px rgba(0,0,0,0.3)',
+                px: { xs: 2, md: 0 }
               }}
             >
               {currentContent.hero.title}
@@ -352,13 +469,21 @@ const LawyerApplicationPage: React.FC = () => {
                 fontWeight: 400,
                 maxWidth: '600px',
                 mx: 'auto',
-                lineHeight: 1.6
+                lineHeight: 1.6,
+                fontSize: { xs: '1rem', md: '1.25rem' },
+                px: { xs: 2, md: 0 }
               }}
             >
               {currentContent.hero.subtitle}
             </Typography>
             
-            <Box sx={{ display: 'flex', gap: 3, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <Box sx={{ 
+              display: 'flex', 
+              gap: { xs: 2, md: 3 }, 
+              justifyContent: 'center', 
+              flexWrap: 'wrap',
+              px: { xs: 2, md: 0 }
+            }}>
               {currentContent.hero.benefits.map((benefit, index) => (
                 <Box
                   key={index}
@@ -367,14 +492,15 @@ const LawyerApplicationPage: React.FC = () => {
                     alignItems: 'center',
                     gap: 1,
                     bgcolor: 'rgba(255,255,255,0.1)',
-                    px: 3,
+                    px: { xs: 2, md: 3 },
                     py: 1.5,
                     borderRadius: 3,
-                    border: '1px solid rgba(255,255,255,0.2)'
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    minWidth: { xs: '100%', sm: 'auto' }
                   }}
                 >
                   <CheckCircle sx={{ fontSize: 20 }} />
-                  <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                  <Typography variant="body1" sx={{ fontWeight: 600, fontSize: { xs: '0.9rem', md: '1rem' } }}>
                     {benefit}
                   </Typography>
                 </Box>
@@ -385,16 +511,17 @@ const LawyerApplicationPage: React.FC = () => {
       </Box>
 
       {/* Why Join Section */}
-      <Box sx={{ bgcolor: 'white', py: 10 }}>
+      <Box sx={{ bgcolor: 'white', py: { xs: 8, md: 10 } }}>
         <Container maxWidth="lg">
-          <Box sx={{ textAlign: 'center', mb: 8 }}>
+          <Box sx={{ textAlign: 'center', mb: { xs: 6, md: 8 } }}>
             <Typography 
               variant="h2" 
               sx={{ 
                 fontWeight: 900, 
                 mb: 3, 
                 color: '#2E7D32',
-                fontSize: { xs: '2.5rem', md: '3.5rem' }
+                fontSize: { xs: '2rem', sm: '2.5rem', md: '3.5rem' },
+                px: { xs: 2, md: 0 }
               }}
             >
               {currentContent.whyJoin.title}
@@ -406,29 +533,37 @@ const LawyerApplicationPage: React.FC = () => {
                 fontWeight: 400,
                 maxWidth: '800px',
                 mx: 'auto',
-                lineHeight: 1.6
+                lineHeight: 1.6,
+                fontSize: { xs: '1rem', md: '1.25rem' },
+                px: { xs: 2, md: 0 }
               }}
             >
               {currentContent.whyJoin.subtitle}
             </Typography>
           </Box>
           
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 4, justifyContent: 'center' }}>
+          <Box sx={{ 
+            display: 'flex', 
+            flexWrap: 'wrap', 
+            gap: 4, 
+            justifyContent: 'center',
+            px: { xs: 2, md: 0 }
+          }}>
             {benefits.map((benefit, index) => (
               <Card
                 key={index}
                 elevation={0}
                 sx={{
-                  minWidth: 350,
+                  minWidth: { xs: '100%', md: 350 },
                   flex: '1 1 350px',
-                  maxWidth: 400,
+                  maxWidth: { xs: '100%', md: 400 },
                   borderRadius: 4,
                   overflow: 'hidden',
                   background: 'linear-gradient(145deg, #2E7D32 0%, #1B5E20 100%)',
                   color: 'white',
                   transition: 'all 0.4s ease',
                   '&:hover': {
-                    transform: 'translateY(-12px) scale(1.02)',
+                    transform: { xs: 'none', md: 'translateY(-12px) scale(1.02)' },
                     boxShadow: '0 25px 50px rgba(46, 125, 50, 0.3)',
                   },
                 }}
@@ -447,10 +582,10 @@ const LawyerApplicationPage: React.FC = () => {
                   >
                     {benefit.icon}
                   </Box>
-                  <Typography variant="h5" sx={{ mb: 2, fontWeight: 700 }}>
+                  <Typography variant="h5" sx={{ mb: 2, fontWeight: 700, fontSize: { xs: '1.25rem', md: '1.5rem' } }}>
                     {benefit.title}
                   </Typography>
-                  <Typography variant="body1" sx={{ opacity: 0.9, lineHeight: 1.7 }}>
+                  <Typography variant="body1" sx={{ opacity: 0.9, lineHeight: 1.7, fontSize: { xs: '0.9rem', md: '1rem' } }}>
                     {benefit.description}
                   </Typography>
                 </CardContent>
@@ -461,32 +596,32 @@ const LawyerApplicationPage: React.FC = () => {
       </Box>
 
       {/* Application Form */}
-      <Container maxWidth="lg" sx={{ py: 8, mt: -4, position: 'relative', zIndex: 2 }}>
-        <Card elevation={8} sx={{ borderRadius: 4, overflow: 'hidden' }}>
+      <Container maxWidth="lg" sx={{ py: 8, mt: { xs: -2, md: -4 }, position: 'relative', zIndex: 2 }}>
+        <Card elevation={8} sx={{ borderRadius: 4, overflow: 'hidden', mx: { xs: 2, md: 0 } }}>
           <Box 
             sx={{ 
               background: 'linear-gradient(135deg, #2E7D32 0%, #1B5E20 100%)',
               color: 'white',
-              p: 6,
+              p: { xs: 4, md: 6 },
               textAlign: 'center'
             }}
           >
-            <Typography variant="h3" sx={{ fontWeight: 900, mb: 2 }}>
+            <Typography variant="h3" sx={{ fontWeight: 900, mb: 2, fontSize: { xs: '1.75rem', md: '3rem' } }}>
               {currentContent.form.title}
             </Typography>
-            <Typography variant="h6" sx={{ opacity: 0.9, fontWeight: 400 }}>
+            <Typography variant="h6" sx={{ opacity: 0.9, fontWeight: 400, fontSize: { xs: '1rem', md: '1.25rem' } }}>
               {currentContent.form.subtitle}
             </Typography>
           </Box>
           
-          <CardContent sx={{ p: 6 }}>
+          <CardContent sx={{ p: { xs: 4, md: 6 } }}>
             {submitted ? (
-              <Box sx={{ textAlign: 'center', py: 8 }}>
-                <CheckCircle sx={{ fontSize: 80, color: '#2E7D32', mb: 3 }} />
+              <Box sx={{ textAlign: 'center', py: { xs: 6, md: 8 } }}>
+                <CheckCircle sx={{ fontSize: { xs: 60, md: 80 }, color: '#2E7D32', mb: 3 }} />
                 <Alert 
                   severity="success" 
                   sx={{ 
-                    fontSize: '1.2rem', 
+                    fontSize: { xs: '1rem', md: '1.2rem' }, 
                     mb: 4,
                     '& .MuiAlert-message': { width: '100%' }
                   }}
@@ -501,7 +636,7 @@ const LawyerApplicationPage: React.FC = () => {
                     borderColor: '#2E7D32',
                     px: 4,
                     py: 2,
-                    fontSize: '1.1rem',
+                    fontSize: { xs: '1rem', md: '1.1rem' },
                     fontWeight: 600,
                   }}
                 >
@@ -510,6 +645,12 @@ const LawyerApplicationPage: React.FC = () => {
               </Box>
             ) : (
               <Box component="form" onSubmit={handleSubmit}>
+                {error && (
+                  <Alert severity="error" sx={{ mb: 3 }}>
+                    {error}
+                  </Alert>
+                )}
+
                 <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 3, mb: 3 }}>
                   <TextField
                     fullWidth
@@ -519,6 +660,7 @@ const LawyerApplicationPage: React.FC = () => {
                     required
                     variant="outlined"
                     sx={{ flex: 1 }}
+                    disabled={loading}
                   />
                   <TextField
                     fullWidth
@@ -528,6 +670,7 @@ const LawyerApplicationPage: React.FC = () => {
                     required
                     variant="outlined"
                     sx={{ flex: 1 }}
+                    disabled={loading}
                   />
                 </Box>
 
@@ -541,6 +684,7 @@ const LawyerApplicationPage: React.FC = () => {
                     required
                     variant="outlined"
                     sx={{ flex: 1 }}
+                    disabled={loading}
                   />
                   <TextField
                     fullWidth
@@ -550,6 +694,7 @@ const LawyerApplicationPage: React.FC = () => {
                     required
                     variant="outlined"
                     sx={{ flex: 1 }}
+                    disabled={loading}
                   />
                 </Box>
 
@@ -562,6 +707,7 @@ const LawyerApplicationPage: React.FC = () => {
                     required
                     variant="outlined"
                     sx={{ flex: 1 }}
+                    disabled={loading}
                   />
                   <TextField
                     fullWidth
@@ -570,6 +716,7 @@ const LawyerApplicationPage: React.FC = () => {
                     onChange={handleChange('firmName')}
                     variant="outlined"
                     sx={{ flex: 1 }}
+                    disabled={loading}
                   />
                 </Box>
 
@@ -582,6 +729,7 @@ const LawyerApplicationPage: React.FC = () => {
                     required
                     variant="outlined"
                     sx={{ flex: 1 }}
+                    disabled={loading}
                   />
                   <TextField
                     fullWidth
@@ -592,6 +740,7 @@ const LawyerApplicationPage: React.FC = () => {
                     required
                     variant="outlined"
                     sx={{ flex: 1 }}
+                    disabled={loading}
                   />
                 </Box>
 
@@ -603,6 +752,7 @@ const LawyerApplicationPage: React.FC = () => {
                   required
                   variant="outlined"
                   sx={{ mb: 4 }}
+                  disabled={loading}
                 />
 
                 <FormControlLabel
@@ -612,10 +762,11 @@ const LawyerApplicationPage: React.FC = () => {
                       onChange={handleChange('acceptTerms')}
                       required
                       sx={{ color: '#2E7D32' }}
+                      disabled={loading}
                     />
                   }
                   label={
-                    <Typography variant="body1" sx={{ color: '#666' }}>
+                    <Typography variant="body1" sx={{ color: '#666', fontSize: { xs: '0.9rem', md: '1rem' } }}>
                       {currentContent.form.acceptTerms}
                     </Typography>
                   }
@@ -627,12 +778,12 @@ const LawyerApplicationPage: React.FC = () => {
                     type="submit"
                     variant="contained"
                     size="large"
-                    disabled={!formData.acceptTerms}
+                    disabled={!formData.acceptTerms || loading}
                     sx={{
                       bgcolor: '#2E7D32',
-                      px: 8,
+                      px: { xs: 6, md: 8 },
                       py: 3,
-                      fontSize: '1.2rem',
+                      fontSize: { xs: '1rem', md: '1.2rem' },
                       fontWeight: 700,
                       borderRadius: 3,
                       boxShadow: '0 8px 32px rgba(46, 125, 50, 0.3)',
@@ -647,7 +798,14 @@ const LawyerApplicationPage: React.FC = () => {
                       transition: 'all 0.3s ease',
                     }}
                   >
-                    {currentContent.form.submit}
+                    {loading ? (
+                      <>
+                        <CircularProgress size={20} sx={{ mr: 1, color: 'white' }} />
+                        {currentContent.form.submitting}
+                      </>
+                    ) : (
+                      currentContent.form.submit
+                    )}
                   </Button>
                 </Box>
               </Box>
