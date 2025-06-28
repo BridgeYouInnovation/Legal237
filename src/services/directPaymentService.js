@@ -639,42 +639,120 @@ class DirectPaymentService {
   // Debug function to check sync status
   async debugSyncStatus() {
     try {
-      console.log('=== Debug Sync Status ===');
+      console.log('=== Payment Debug Status ===');
       
-      // Check local purchases
-      const purchasedDocuments = await AsyncStorage.getItem('purchased_documents');
-      const purchased = purchasedDocuments ? JSON.parse(purchasedDocuments) : [];
-      console.log('Local purchases:', purchased);
-
-      // Check database sync status
-      const syncResult = await this.syncAllPurchasesToDatabase();
-      console.log('Sync result:', syncResult);
-
-      // Check if user is authenticated
+      // Check local storage
+      const transactions = await AsyncStorage.getItem('payment_transactions');
+      const purchased = await AsyncStorage.getItem('purchased_documents');
+      
+      console.log('Local transactions:', transactions ? JSON.parse(transactions) : 'None');
+      console.log('Local purchased documents:', purchased ? JSON.parse(purchased) : 'None');
+      
+      // Check database
       const { supabase } = require('../lib/supabase');
+      
       const { data: { user }, error: userError } = await supabase.auth.getUser();
-      console.log('Current user:', user?.id || 'Not authenticated');
-
-      if (user) {
-        // Check database records
-        const { data: dbPayments, error: dbError } = await supabase
-          .from('payment_records')
-          .select('*')
-          .eq('user_id', user.id);
-        
-        console.log('Database payments:', dbPayments);
-        if (dbError) console.error('Database error:', dbError);
+      if (userError || !user) {
+        console.log('No authenticated user for database check');
+        return;
       }
-
+      
+      const { data: dbPayments, error: dbError } = await supabase
+        .from('payment_records')
+        .select('*')
+        .eq('user_id', user.id);
+        
+      console.log('Database payments:', dbPayments || 'None');
+      
       return {
-        success: true,
-        localPurchases: purchased,
-        syncResult,
-        userId: user?.id,
-        databasePayments: user ? (await supabase.from('payment_records').select('*').eq('user_id', user.id)).data : null
+        localTransactions: transactions ? JSON.parse(transactions) : {},
+        localPurchased: purchased ? JSON.parse(purchased) : [],
+        databasePayments: dbPayments || []
       };
     } catch (error) {
       console.error('Debug sync status error:', error);
+    }
+  }
+
+  // Get comprehensive payment history from all sources
+  async getPaymentHistory() {
+    try {
+      console.log('🔍 Getting comprehensive payment history...');
+      
+      const history = {
+        localTransactions: [],
+        localPurchased: [],
+        databasePayments: [],
+        summary: {}
+      };
+
+      // Get local transactions
+      const transactions = await AsyncStorage.getItem('payment_transactions');
+      if (transactions) {
+        const transactionsList = JSON.parse(transactions);
+        history.localTransactions = Object.values(transactionsList);
+        console.log('📱 Local transactions found:', history.localTransactions.length);
+      }
+
+      // Get local purchased documents
+      const purchased = await AsyncStorage.getItem('purchased_documents');
+      if (purchased) {
+        history.localPurchased = JSON.parse(purchased);
+        console.log('📱 Local purchased documents:', history.localPurchased);
+      }
+
+      // Get database payments
+      try {
+        const { supabase } = require('../lib/supabase');
+        
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        if (!userError && user) {
+          const { data: dbPayments, error: dbError } = await supabase
+            .from('payment_records')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false });
+            
+          if (!dbError && dbPayments) {
+            history.databasePayments = dbPayments;
+            console.log('💾 Database payments found:', dbPayments.length);
+          }
+        }
+      } catch (dbError) {
+        console.warn('Database query failed:', dbError);
+      }
+
+      // Create summary
+      history.summary = {
+        totalLocalTransactions: history.localTransactions.length,
+        totalPurchasedLocally: history.localPurchased.length,
+        totalDatabasePayments: history.databasePayments.length,
+        purchasedDocuments: [...new Set([
+          ...history.localPurchased,
+          ...history.databasePayments.filter(p => ['completed', 'successful', 'success'].includes(p.status)).map(p => p.document_type)
+        ])]
+      };
+
+      console.log('📊 Payment history summary:', history.summary);
+      return history;
+    } catch (error) {
+      console.error('❌ Error getting payment history:', error);
+      return null;
+    }
+  }
+
+  // Clear all payment data (for testing/reset)
+  async clearAllPaymentData() {
+    try {
+      console.log('🗑️ Clearing all payment data...');
+      
+      await AsyncStorage.removeItem('payment_transactions');
+      await AsyncStorage.removeItem('purchased_documents');
+      
+      console.log('✅ All local payment data cleared');
+      return { success: true, message: 'All payment data cleared' };
+    } catch (error) {
+      console.error('❌ Error clearing payment data:', error);
       return { success: false, error: error.message };
     }
   }
