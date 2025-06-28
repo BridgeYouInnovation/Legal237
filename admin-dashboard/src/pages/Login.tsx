@@ -17,7 +17,7 @@ const Login: React.FC = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const { signIn } = useAuth();
+  const { signIn, supabaseError } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -75,6 +75,11 @@ const Login: React.FC = () => {
               Admin Dashboard
             </Typography>
 
+            {supabaseError && (
+              <Alert severity="warning" sx={{ width: '100%', mb: 2 }}>
+                Connection Issue: {supabaseError}
+              </Alert>
+            )}
             {error && <Alert severity="error" sx={{ width: '100%', mb: 2 }}>{error}</Alert>}
 
             <Box component="form" onSubmit={handleSubmit} sx={{ width: '100%' }}>

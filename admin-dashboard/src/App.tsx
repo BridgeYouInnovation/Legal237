@@ -2,7 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
-import { Box } from '@mui/material';
+import { Box, Typography, Button } from '@mui/material';
 
 // Public Pages
 import LandingPage from './pages/LandingPage';
@@ -63,17 +63,77 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   );
 };
 
+const DebugInfo: React.FC = () => {
+  const { user, loading, supabaseError } = useAuth();
+  
+  return (
+    <Box sx={{ p: 4, bgcolor: '#f5f5f5', minHeight: '100vh' }}>
+      <Typography variant="h4" gutterBottom>
+        Debug Information
+      </Typography>
+      <Typography variant="body1" paragraph>
+        <strong>Current URL:</strong> {window.location.href}
+      </Typography>
+      <Typography variant="body1" paragraph>
+        <strong>User:</strong> {user ? 'Logged in' : 'Not logged in'}
+      </Typography>
+      <Typography variant="body1" paragraph>
+        <strong>Loading:</strong> {loading ? 'Yes' : 'No'}
+      </Typography>
+      <Typography variant="body1" paragraph>
+        <strong>Supabase Error:</strong> {supabaseError || 'None'}
+      </Typography>
+      <Typography variant="body1" paragraph>
+        <strong>Environment:</strong>
+        <br />
+        - Supabase URL: {process.env.REACT_APP_SUPABASE_URL ? 'Set' : 'Not set'}
+        <br />
+        - Supabase Key: {process.env.REACT_APP_SUPABASE_ANON_KEY ? 'Set' : 'Not set'}
+      </Typography>
+      <Button 
+        variant="contained" 
+        onClick={() => window.location.href = '/admin-dashboard/login'}
+        sx={{ mt: 2 }}
+      >
+        Go to Login
+      </Button>
+    </Box>
+  );
+};
+
 const AdminRoutes: React.FC = () => {
-  const { user, loading } = useAuth();
+  const { user, loading, supabaseError } = useAuth();
 
   if (loading) {
-    return <div>Loading...</div>;
+    return (
+      <Box 
+        display="flex" 
+        justifyContent="center" 
+        alignItems="center" 
+        minHeight="100vh"
+        flexDirection="column"
+        gap={2}
+      >
+        <div>Loading authentication...</div>
+        {supabaseError && (
+          <div style={{ color: 'red', fontSize: '14px', textAlign: 'center' }}>
+            Error: {supabaseError}
+          </div>
+        )}
+      </Box>
+    );
+  }
+
+  // If there's a Supabase error, still show login page but with error message
+  if (supabaseError) {
+    console.error('Supabase error detected:', supabaseError);
   }
 
   if (!user) {
     return (
       <Routes>
         <Route path="/admin-dashboard/login" element={<Login />} />
+        <Route path="/admin-dashboard/debug" element={<DebugInfo />} />
         <Route path="/admin-dashboard/payment/success" element={<PaymentSuccess />} />
         <Route path="/admin-dashboard/payment/cancelled" element={<PaymentCancelled />} />
         <Route path="/admin-dashboard/payment/failed" element={<PaymentFailed />} />
@@ -90,6 +150,7 @@ const AdminRoutes: React.FC = () => {
         <Route path="/admin-dashboard/lawyers" element={<Lawyers />} />
         <Route path="/admin-dashboard/users" element={<Users />} />
         <Route path="/admin-dashboard/subscriptions" element={<Subscriptions />} />
+        <Route path="/admin-dashboard/debug" element={<DebugInfo />} />
         <Route path="/admin-dashboard/login" element={<Navigate to="/admin-dashboard" replace />} />
         <Route path="/admin-dashboard/*" element={<Navigate to="/admin-dashboard" replace />} />
       </Routes>
